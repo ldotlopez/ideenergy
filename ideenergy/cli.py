@@ -18,7 +18,43 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
 # USA.
 
-from . import cli
 
-if __name__ == '__main__':
-    cli.main()
+import sys
+
+from ideenergy import (
+    Iberdrola,
+    InvalidResponse,
+    LoginFailed,
+    build_arg_parser,
+    get_credentials,
+)
+
+
+def main():
+    parser = build_arg_parser()
+
+    args = parser.parse_args()
+    username, password = get_credentials(args)
+
+    if not username or not password:
+        print("Missing username or password", file=sys.stderr)
+        sys.exit(1)
+
+    api = Iberdrola(username, password)
+
+    try:
+        measure = api.get_instant_measure().asdict()
+
+    except LoginFailed as e:
+        print(f"Login failed: {e.message}", file=sys.stderr)
+        sys.exit(1)
+
+    except InvalidResponse as e:
+        print(f"Invalid response: {e.message} ({e.data!r})", file=sys.stderr)
+        sys.exit(2)
+
+    print(repr(measure))
+
+
+if __name__ == "__main__":
+    main()
