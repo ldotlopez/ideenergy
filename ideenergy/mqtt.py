@@ -18,28 +18,44 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
 # USA.
 
+import sys
+
+from . import cli, get_credentials
 
 try:
     from paho.mqtt import publish
 except ImportError as e:
     raise SystemError("Install paho.mqtt") from e
 
-from . import Iberdrola, build_arg_parser, get_credentials
-
 
 def main():
-    parser = build_arg_parser()
+    parser = cli.build_arg_parser()
     parser.add_argument("--host", required=True)
     parser.add_argument("--topic", default="ideenergy")
 
     args = parser.parse_args()
 
     username, password = get_credentials(args)
-    measure = Iberdrola(username, password).get_instant_measure().asdict()
+    measure = cli.get_measure(username, password)
+    if not measure:
+        sys.exit(1)
+
+    # data = {
+    #     "valMagnitud": "345.0",
+    #     "valInterruptor": "1",
+    #     "valEstado": "09",
+    #     "valLecturaContador": "42690",
+    #     "codSolicitudTGT": "009253883600",
+    # }
+
+    # measure = Measure(
+    #     accumulate=int(data["valLecturaContador"]),
+    #     instant=float(data["valMagnitud"]),
+    # ).asdict()
 
     msgs = [
-        {"topic": f"{args.topic}/{k}", "payload": float(v), "retain": True}
-        for (k, v) in measure.items()
+        {"topic": f"{args.topic}/{k}", "payload": v, "retain": True}
+        for (k, v) in measure.asdict().items()
     ]
 
     publish.multiple(msgs, hostname=args.host)

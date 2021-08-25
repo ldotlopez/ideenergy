@@ -19,31 +19,21 @@
 # USA.
 
 
-import argparse
 import json
 import os
 
-from .ideenergy import Iberdrola, InvalidResponse, LoginFailed
-
-
-def build_arg_parser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--username", required=False)
-    parser.add_argument("--password", required=False)
-    parser.add_argument("--config-file", required=False)
-
-    return parser
+from .ideenergy import IDEEnergy, InvalidResponse, LoginFailed
 
 
 def get_credentials(
-    parsedargs=None, config_file=None, environ_prefix="IDEENERGY"
+    parsedargs=None, credentials=None, environ_prefix="IDEENERGY"
 ):
     if parsedargs.username:
         return parsedargs.username, parsedargs.password
 
-    config_file = config_file or parsedargs.config_file
-    if config_file:
-        with open(config_file, mode="r", encoding="utf-8") as fh:
+    credentials = credentials or parsedargs.credentials
+    if credentials:
+        with open(credentials, mode="r", encoding="utf-8") as fh:
             d = json.loads(fh.read())
         return d["username"], d["password"]
 
@@ -55,4 +45,4 @@ def get_credentials(
         )
 
 
-__all__ = ["Iberdrola", "InvalidResponse", "LoginFailed"]
+__all__ = ["IDEEnergy", "InvalidResponse", "LoginFailed"]

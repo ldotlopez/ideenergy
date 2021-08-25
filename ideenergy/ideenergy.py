@@ -150,7 +150,7 @@ def require_login(fn):
     return wrap
 
 
-class Iberdrola:
+class IDEEnergy:
     def __init__(self, username, password):
         self.baseurl = _BASE_URL
         self.username = username
@@ -198,7 +198,7 @@ class Iberdrola:
             raise LoginFailed(resp.status_code, resp_content.get("message"))
 
     @require_login
-    def get_instant_measure(self):
+    def get_measure(self):
         _LOGGER.debug("Measure request…")
         resp = self.sess.get(
             self.baseurl + "escenarioNew/obtenerMedicionOnline/24",
@@ -207,6 +207,9 @@ class Iberdrola:
 
         data = resp.json()
         _LOGGER.debug(f"Measure raw data: {resp.content!r}")
+
+        if not data:
+            raise InvalidResponse("Empty data", data)
 
         try:
             return Measure(
@@ -227,11 +230,11 @@ class Measure:
         return dataclasses.asdict(self)
 
 
-class IberdrolaException(Exception):
+class IDEEnergyException(Exception):
     pass
 
 
-class LoginFailed(IberdrolaException):
+class LoginFailed(IDEEnergyException):
     __doc__ = """
         Cookies
         <RequestsCookieJar[
@@ -280,7 +283,7 @@ class LoginFailed(IberdrolaException):
         self.message = message
 
 
-class InvalidResponse(IberdrolaException):
+class InvalidResponse(IDEEnergyException):
     def __init__(self, message, data):
         self.message = message
         self.data = data
