@@ -18,6 +18,8 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
 # USA.
 
+
+import logging
 import sys
 
 from . import cli, get_credentials
@@ -29,6 +31,13 @@ except ImportError as e:
 
 
 def main():
+    logging.basicConfig(
+        format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    logger = logging.getLogger("ideenergy")
+    logger.setLevel(logging.DEBUG)
+
     parser = cli.build_arg_parser()
     parser.add_argument("--host", required=True)
     parser.add_argument("--topic", default="ideenergy")
@@ -39,19 +48,6 @@ def main():
     measure = cli.get_measure(username, password)
     if not measure:
         sys.exit(1)
-
-    # data = {
-    #     "valMagnitud": "345.0",
-    #     "valInterruptor": "1",
-    #     "valEstado": "09",
-    #     "valLecturaContador": "42690",
-    #     "codSolicitudTGT": "009253883600",
-    # }
-
-    # measure = Measure(
-    #     accumulate=int(data["valLecturaContador"]),
-    #     instant=float(data["valMagnitud"]),
-    # ).asdict()
 
     msgs = [
         {"topic": f"{args.topic}/{k}", "payload": v, "retain": True}

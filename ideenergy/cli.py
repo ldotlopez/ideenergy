@@ -18,15 +18,15 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
 # USA.
 
+
 import argparse
+import asyncio
+import logging
 import sys
 
-from ideenergy import (
-    IDEEnergy,
-    InvalidResponse,
-    LoginFailed,
-    get_credentials,
-)
+import aiohttp
+
+from ideenergy import Client, InvalidResponse, LoginFailed, get_credentials
 
 
 def build_arg_parser():
@@ -38,32 +38,54 @@ def build_arg_parser():
     return parser
 
 
-def get_measure(username=None, password=None, retries=1, stderr=sys.stderr):
-    api = IDEEnergy(username, password)
+async def async_get_measure(
+    username=None, password=None, retries=1, logger=None, stderr=sys.stderr
+):
+    async with aiohttp.ClientSession() as sess:
+        client = Client(sess, username, password, logger=logger)
 
-    for i in range(1, retries + 1):
-        try:
-            return api.get_measure()
+        for i in range(1, retries + 1):
+            try:
+                return await client.get_measure()
 
-        except LoginFailed as e:
-            print(
-                f"Login failed: {e.message}",
-                file=stderr,
-            )
-            return
+            except LoginFailed as e:
+                print(
+                    f"Login failed: {e.message}",
+                    file=stderr,
+                )
+                return
 
-        except InvalidResponse as e:
-            print(
-                f"Invalid response: {e.message} ({e.data!r}) (attempt {i} of {retries})",
-                file=stderr,
-            )
+            except InvalidResponse as e:
+                print(
+                    f"Invalid response: {e.message} ({e.data!r}) (attempt {i} of {retries})",
+                    file=stderr,
+                )
 
     return None
 
 
-def main():
-    parser = build_arg_parser()
+def get_measure(*args, **kwargs):
+    measure = None
 
+    async def _fn():
+        nonlocal measure
+        measure = await async_get_measure(*args, **kwargs)
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(_fn())
+
+    return measure
+
+
+def main():
+    logging.basicConfig(
+        format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    logger = logging.getLogger("ideenergy")
+    logger.setLevel(logging.DEBUG)
+
+    parser = build_arg_parser()
     args = parser.parse_args()
     username, password = get_credentials(args)
 
@@ -71,12 +93,8 @@ def main():
         print("Missing username or password", file=sys.stderr)
         sys.exit(1)
 
-    measure = get_measure(username, password)
+    measure = get_measure(username, password, logger=logger)
     if not measure:
         sys.exit(1)
 
     print(repr(measure.asdict()))
-
-
-if __name__ == "__main__":
-    main()

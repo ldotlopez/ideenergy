@@ -22,7 +22,7 @@
 import json
 import os
 
-from .ideenergy import IDEEnergy, InvalidResponse, LoginFailed
+from .client import Client, InvalidResponse, LoginFailed
 
 
 def get_credentials(
@@ -45,4 +45,4 @@ def get_credentials(
         )
 
 
-__all__ = ["IDEEnergy", "InvalidResponse", "LoginFailed"]
+__all__ = ["Client", "InvalidResponse", "LoginFailed"]
