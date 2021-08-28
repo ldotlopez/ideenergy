@@ -140,12 +140,9 @@ class Client:
 
     def __init__(self, session, username, password, logger=None):
         self.logger = logger or logging.getLogger("ideenergy")
-        self.baseurl = self._BASE_URL
+        self.sess = session
         self.username = username
         self.password = password
-
-        self.sess = session
-        self.sess.headers.update(self._HEADERS)
 
     @property
     def logged(self):
@@ -182,7 +179,7 @@ class Client:
         self.logger.debug("Trying log-in into consumer panel")
 
         async with self.sess.post(
-            self.baseurl + "loginNew/login", json=payload
+            self._BASE_URL + "loginNew/login", headers=self._HEADERS, json=payload
         ) as resp:
 
             if resp.status != 200:
@@ -199,7 +196,7 @@ class Client:
         self.logger.debug("Measure request…")
 
         async with self.sess.get(
-            self.baseurl + "escenarioNew/obtenerMedicionOnline/24"
+            self._BASE_URL + "escenarioNew/obtenerMedicionOnline/24", headers=self._HEADERS
         ) as resp:
             if not resp.status == 200:
                 raise InvalidResponse("Invalid response code", resp.status)
