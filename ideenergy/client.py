@@ -78,7 +78,7 @@ __doc__ = """
     # Cookies from server:
     [{'version': 0,
       'name': 'JSESSIONID',
-      'value': '0000EP17M58b2nl0OeDgoC_G82u:1f4c1hiiv',
+      'value': '^0000[0-9a-zA-Z]{18}_[0-9a-zA-Z]{4}:[0-9a-zA-Z]{9}$',
       'port': None,
       'port_specified': False,
       'domain': 'www.i-de.es',
@@ -94,8 +94,8 @@ __doc__ = """
       'rfc2109': False,
       '_rest': {'HttpOnly': None}},
      {'version': 0,
-      'name': 'NSC_wt_mc_mbssvo0Y-12009',  # last portion (12009) can vary
-      'value': '<erased>',                 # matches ^[0-9a-f]{72}$
+      'name': 'NSC_wt_mc_mbssvo0Y-[0-9]{5}',
+      'value': '^[0-9a-f]{72}$',
       'port': None,
       'port_specified': False,
       'domain': 'www.i-de.es',
@@ -240,7 +240,7 @@ class LoginFailed(IDEEnergyException):
             Cookie(
                 version=0,
                 name='JSESSIONID',
-                value='0000MGXnAS19ktAlLSZ8dgI1oJ0:1f4c1hi2c',
+                value='',
                 port=None,
                 port_specified=False,
                 domain='www.i-de.es',
@@ -259,7 +259,7 @@ class LoginFailed(IDEEnergyException):
             # This cookie expires
             Cookie(version=0,
                 name='NSC_wt_mc_mbssvo0Y-12009',
-                value='5ccba3d89f4919c8612dbceb2dd5f7d574280f294e10e218aa1e35122183a20833fbe6dc',
+                value='',
                 port=None,
                 port_specified=False,
                 domain='www.i-de.es',
