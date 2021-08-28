@@ -1,3 +1,3 @@
 # ideenergy
 
-Programatic access to consumer energy consumition from https://www.i-de.es/ (Spanish energy distributor)
+Programmatic access to consumer energy consumption from https://www.i-de.es/ (Spanish energy distributor)
