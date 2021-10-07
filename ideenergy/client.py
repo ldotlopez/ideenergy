@@ -226,11 +226,11 @@ class Measure:
         return dataclasses.asdict(self)
 
 
-class IDEEnergyException(Exception):
+class ClientError(Exception):
     pass
 
 
-class LoginFailed(IDEEnergyException):
+class LoginFailed(ClientError):
     __doc__ = """
         Cookies
         <RequestsCookieJar[
@@ -279,7 +279,7 @@ class LoginFailed(IDEEnergyException):
         self.message = message
 
 
-class InvalidResponse(IDEEnergyException):
+class InvalidResponse(ClientError):
     def __init__(self, message, data):
         self.message = message
         self.data = data

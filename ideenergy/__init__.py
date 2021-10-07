@@ -22,7 +22,7 @@
 import json
 import os
 
-from .client import Client, InvalidResponse, LoginFailed
+from .client import Client, ClientError, InvalidResponse, LoginFailed
 
 
 def get_credentials(
@@ -45,4 +45,4 @@ def get_credentials(
         )
 
 
-__all__ = ["Client", "InvalidResponse", "LoginFailed"]
+__all__ = ["Client", "ClientError", "InvalidResponse", "LoginFailed"]

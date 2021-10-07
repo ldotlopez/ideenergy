@@ -34,6 +34,7 @@ def build_arg_parser():
     parser.add_argument("--username", required=False)
     parser.add_argument("--password", required=False)
     parser.add_argument("--credentials", required=False)
+    parser.add_argument("--retries", type=int, default=1)
 
     return parser
 
@@ -93,7 +94,7 @@ def main():
         print("Missing username or password", file=sys.stderr)
         sys.exit(1)
 
-    measure = get_measure(username, password, logger=logger)
+    measure = get_measure(username, password, retries=args.retries, logger=logger)
     if not measure:
         sys.exit(1)
 
