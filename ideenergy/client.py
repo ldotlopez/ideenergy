@@ -20,8 +20,13 @@
 
 
 import dataclasses
+import datetime
+import functools
 import logging
 
+
+_AIOHTTP = None
+_AUTO_LOGIN = True
 
 __doc__ = """
     # Returned JSON payloads for login phase:
@@ -112,13 +117,40 @@ __doc__ = """
 """
 
 
+async def get_session():
+    global _AIOHTTP
+
+    if _AIOHTTP is None:
+        try:
+            import aiohttp
+
+            _AIOHTTP = aiohttp
+        except ImportError as e:
+            raise SystemError("aiohttp is required to build sessions") from e
+
+    return _AIOHTTP.ClientSession()
+
+
+def login_required(fn):
+    @functools.wraps(fn)
+    async def _wrap(self, *args, **kwargs):
+        global _AUTO_LOGIN
+        if _AUTO_LOGIN is True and self.user_is_logged is False:
+            self._logger.warning("User is not logged or session is too old")
+            await self.login()
+
+        return await fn(self, *args, **kwargs)
+
+    return _wrap
+
+
 class Client:
     _BASE_URL = "https://www.i-de.es/consumidores/rest"
     _LOGIN_ENDPOINT = f"{_BASE_URL}/loginNew/login"
     _MEASURE_ENDPOINT = f"{_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
     _ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
     _CONTRACTS_ENDPOINT = f"{_BASE_URL}/cto/listaCtos/"
-
+    _USER_SESSION_TIMEOUT = 300
     _HEADERS = {
         "Content-Type": "application/json; charset=utf-8",
         "esVersionNueva": "1",
@@ -132,17 +164,26 @@ class Client:
     }
 
     def __init__(self, session, username, password, logger=None):
-        self.logger = logger or logging.getLogger("ideenergy")
-        self.sess = session
         self.username = username
         self.password = password
+        self._logger = logger or logging.getLogger("ideenergy")
+        self._sess = session
+        self._login_ts = None
+
+    @property
+    def user_is_logged(self):
+        if not self._login_ts:
+            return False
+
+        delta = datetime.datetime.now() - self._login_ts
+        return delta.total_seconds() < self._USER_SESSION_TIMEOUT
 
     async def request(self, method, url, **kwargs):
         headers = kwargs.get("headers", {})
         headers.update(self._HEADERS)
         kwargs["headers"] = headers
 
-        resp = await self.sess.request(method, url, **kwargs)
+        resp = await self._sess.request(method, url, **kwargs)
         if resp.status != 200:
             raise RequestFailedError(resp)
 
@@ -176,8 +217,10 @@ class Client:
         if not data.get("success", False):
             raise CommandError(data)
 
-        self.logger.debug("Login successfully.")
+        self._logger.debug("Login successfully.")
+        self._login_ts = datetime.datetime.now()
 
+    @login_required
     async def is_icp_ready(self):
         """
         {
@@ -185,8 +228,12 @@ class Client:
         }
         """
         data = self.request("POST", self._ICP_STATUS_ENDPOINT)
-        return data.get("icp") == "trueConectado"
+        try:
+            return data["icp"] == "trueConectado"
+        except KeyError:
+            raise InvalidData(data)
 
+    @login_required
     async def get_contracts(self):
         """
         {
@@ -214,8 +261,12 @@ class Client:
         if not data.get("success", False):
             raise CommandError(data)
 
-        return data["contratos"]
+        try:
+            return data["contratos"]
+        except KeyError:
+            raise InvalidData(data)
 
+    @login_required
     async def get_measure(self):
         """
         {
@@ -227,12 +278,12 @@ class Client:
         }
         """
 
-        self.logger.debug(
+        self._logger.debug(
             "Requesting data to the ICP, may take up to a minute."
         )
 
         measure = await self.request("GET", self._MEASURE_ENDPOINT)
-        self.logger.debug(f"Got reply, raw data: {measure!r}")
+        self._logger.debug(f"Got reply, raw data: {measure!r}")
 
         try:
             return Measure(
@@ -262,7 +313,11 @@ class RequestFailedError(ClientError):
         self.response = response
 
     def __str__(self):
-        return f"Invalid response: {self.response.status!r}"
+        return (
+            f"Invalid response: "
+            f"{self.response.status} - "
+            f"{self.response.reason}"
+        )
 
 
 class CommandError(ClientError):
@@ -279,20 +334,3 @@ class InvalidData(ClientError):
 
     def __str__(self):
         return f"Invalid data from server: {self.data!r}"
-
-
-async def get_session():
-    global _AIOHTTP
-
-    if _AIOHTTP is None:
-        try:
-            import aiohttp
-
-            _AIOHTTP = aiohttp
-        except ImportError as e:
-            raise SystemError("aiohttp is required to build sessions") from e
-
-    return _AIOHTTP.ClientSession()
-
-
-_AIOHTTP = None
