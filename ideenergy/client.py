@@ -22,8 +22,8 @@
 import dataclasses
 import datetime
 import functools
+import json
 import logging
-
 
 _AIOHTTP = None
 _AUTO_LOGIN = True
@@ -150,6 +150,13 @@ class Client:
     _MEASURE_ENDPOINT = f"{_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
     _ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
     _CONTRACTS_ENDPOINT = f"{_BASE_URL}/cto/listaCtos/"
+
+    _CONSUMPTION_PERIOD_ENDPOINT = (
+        f"{_BASE_URL}/consumoNew/obtenerDatosConsumoPeriodo/"
+        "fechaInicio/{start}00:00:00/"
+        "fechaFinal/{end}00:00:00/"
+    )
+
     _USER_SESSION_TIMEOUT = 300
     _HEADERS = {
         "Content-Type": "application/json; charset=utf-8",
@@ -178,12 +185,20 @@ class Client:
         delta = datetime.datetime.now() - self._login_ts
         return delta.total_seconds() < self._USER_SESSION_TIMEOUT
 
-    async def request(self, method, url, **kwargs):
+    async def raw_request(self, method, url, **kwargs):
         headers = kwargs.get("headers", {})
         headers.update(self._HEADERS)
         kwargs["headers"] = headers
 
         resp = await self._sess.request(method, url, **kwargs)
+        if resp.status != 200:
+            raise RequestFailedError(resp)
+
+        return resp
+
+    async def request(self, method, url, **kwargs):
+        resp = await self.raw_request(method, url, **kwargs)
+
         if resp.status != 200:
             raise RequestFailedError(resp)
 
@@ -293,6 +308,20 @@ class Client:
 
         except (KeyError, ValueError) as e:
             raise InvalidData(measure) from e
+
+    @login_required
+    async def get_consumption_period(self, start, end):
+        start = min([start, end])
+        end = max([start, end])
+
+        url = self._CONSUMPTION_PERIOD_ENDPOINT.format(
+            start=start.strftime("%d-%m-%Y"), end=end.strftime("%d-%m-%Y")
+        )
+        resp = await self.raw_request("GET", url)
+        buff = await resp.content.read()
+        buff = buff.decode(resp.charset)
+        data = json.loads(buff)
+        return data
 
 
 @dataclasses.dataclass
