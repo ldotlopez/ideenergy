@@ -26,13 +26,13 @@ import sys
 
 import aiohttp
 
-from ideenergy import Client, InvalidResponse, LoginFailed, get_credentials
+from ideenergy import Client, ClientError, RequestFailedError, get_credentials
 
 
 def build_arg_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--username", required=False)
-    parser.add_argument("--password", required=False)
+    parser.add_argument("-u", "--username", required=False)
+    parser.add_argument("-p", "--password", required=False)
     parser.add_argument("--credentials", required=False)
     parser.add_argument("--retries", type=int, default=1)
 
@@ -45,24 +45,27 @@ async def async_get_measure(
     async with aiohttp.ClientSession() as sess:
         client = Client(sess, username, password, logger=logger)
 
+        try:
+            await client.login()
+        except ClientError as e:
+            print(f"Login failed: {e}", file=stderr)
+            return
+
         for i in range(1, retries + 1):
             try:
                 return await client.get_measure()
 
-            except LoginFailed as e:
-                print(
-                    f"Login failed: {e.message}",
-                    file=stderr,
-                )
-                return
+            except RequestFailedError as e:
+                print(f"Request failed, aborted: {e}")
+                break
 
-            except InvalidResponse as e:
+            except ClientError as e:
                 print(
-                    f"Invalid response: {e.message} ({e.data!r}) (attempt {i} of {retries})",
+                    f"Client error: {e}) " f"(attempt {i} of {retries})",
                     file=stderr,
                 )
 
-    return None
+        return None
 
 
 def get_measure(*args, **kwargs):
@@ -94,7 +97,9 @@ def main():
         print("Missing username or password", file=sys.stderr)
         sys.exit(1)
 
-    measure = get_measure(username, password, retries=args.retries, logger=logger)
+    measure = get_measure(
+        username, password, retries=args.retries, logger=logger
+    )
     if not measure:
         sys.exit(1)
 

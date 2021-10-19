@@ -20,7 +20,6 @@
 
 
 import dataclasses
-import functools
 import logging
 
 
@@ -113,19 +112,13 @@ __doc__ = """
 """
 
 
-def require_login(fn):
-    @functools.wraps(fn)
-    async def wrap(api):
-        if not api.logged:
-            await api.login()
-
-        return await fn(api)
-
-    return wrap
-
-
 class Client:
-    _BASE_URL = "https://www.i-de.es/consumidores/rest/"
+    _BASE_URL = "https://www.i-de.es/consumidores/rest"
+    _LOGIN_ENDPOINT = f"{_BASE_URL}/loginNew/login"
+    _MEASURE_ENDPOINT = f"{_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
+    _ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
+    _CONTRACTS_ENDPOINT = f"{_BASE_URL}/cto/listaCtos/"
+
     _HEADERS = {
         "Content-Type": "application/json; charset=utf-8",
         "esVersionNueva": "1",
@@ -144,24 +137,27 @@ class Client:
         self.username = username
         self.password = password
 
-    @property
-    def logged(self):
-        # self.sess.cookies.clear_expired_cookies()
+    async def request(self, method, url, **kwargs):
+        headers = kwargs.get("headers", {})
+        headers.update(self._HEADERS)
+        kwargs["headers"] = headers
 
-        cookie = self.sess.cookie_jar.filter_cookies(self._BASE_URL)
-        return bool(cookie.get("JSESSIONID"))
+        resp = await self.sess.request(method, url, **kwargs)
+        if resp.status != 200:
+            raise RequestFailedError(resp)
 
-        # for c in self.sess.cookies:
-        #     if (
-        #         c.name.startswith("NSC_wt_mc_")
-        #         and re.search(r"^[0-9-a-f]{72}$", c.value, re.IGNORECASE)
-        #         != None
-        #     ):
-        #         return True
-
-        # return False
+        return await resp.json()
 
     async def login(self):
+        """
+        {
+            'redirect': 'informacion-del-contrato',
+            'zona': 'B',
+            'success': 'true',
+            'idioma': 'ES',
+            'uCcr': ''
+        }
+        """
         payload = [
             self.username,
             self.password,
@@ -176,45 +172,76 @@ class Client:
             "n",
         ]
 
-        self.logger.debug("Trying log-in into consumer panel")
-
-        async with self.sess.post(
-            self._BASE_URL + "loginNew/login", headers=self._HEADERS, json=payload
-        ) as resp:
-
-            if resp.status != 200:
-                raise LoginFailed(resp.status, None)
-
-            data = await resp.json()
-            if data.get("success", "false") != "true":
-                raise LoginFailed(resp.status, data.get("message"))
+        data = await self.request("POST", self._LOGIN_ENDPOINT, json=payload)
+        if not data.get("success", False):
+            raise CommandError(data)
 
         self.logger.debug("Login successfully.")
 
-    @require_login
+    async def is_icp_ready(self):
+        """
+        {
+            'icp': 'trueConectado'
+        }
+        """
+        data = self.request("POST", self._ICP_STATUS_ENDPOINT)
+        return data.get("icp") == "trueConectado"
+
+    async def get_contracts(self):
+        """
+        {
+            'success': true,
+            'contratos': [
+                {
+                    'direccion': 'xxxxxxxxxxxxxxxxxxxxxxx',
+                    'cups': 'ES0000000000000000AB',
+                    'tipo': 'A',
+                    'tipUsoEnergiaCorto': '-',
+                    'tipUsoEnergiaLargo': '-',
+                    'estContrato': 'Alta',
+                    'codContrato': '123456789',
+                    'esTelegestionado': True,
+                    'presion': '1.00',
+                    'fecUltActua': '01.01.1970',
+                    'esTelemedido': False,
+                    'tipSisLectura': 'TG',
+                    'estadoAlta': True
+                }
+            ]
+        }
+        """
+        data = await self.request("GET", self._CONTRACTS_ENDPOINT)
+        if not data.get("success", False):
+            raise CommandError(data)
+
+        return data["contratos"]
+
     async def get_measure(self):
-        self.logger.debug("Measure request…")
+        """
+        {
+            "valMagnitud": "158.64",
+            "valInterruptor": "1",
+            "valEstado": "09",
+            "valLecturaContador": "43167",
+            "codSolicitudTGT": "012345678901",
+        }
+        """
 
-        async with self.sess.get(
-            self._BASE_URL + "escenarioNew/obtenerMedicionOnline/24", headers=self._HEADERS
-        ) as resp:
-            if not resp.status == 200:
-                raise InvalidResponse("Invalid response code", resp.status)
+        self.logger.debug(
+            "Requesting data to the ICP, may take up to a minute."
+        )
 
-            data = await resp.json()
-            self.logger.debug(f"Measure raw data: {data!r}")
+        measure = await self.request("GET", self._MEASURE_ENDPOINT)
+        self.logger.debug(f"Got reply, raw data: {measure!r}")
 
-            if not data:
-                raise InvalidResponse("Empty data", data)
+        try:
+            return Measure(
+                accumulate=int(measure["valLecturaContador"]),
+                instant=float(measure["valMagnitud"]),
+            )
 
-            try:
-                return Measure(
-                    accumulate=int(data["valLecturaContador"]),
-                    instant=float(data["valMagnitud"]),
-                )
-
-            except (KeyError, ValueError) as e:
-                raise InvalidResponse("Invalid measure data", data) from e
+        except (KeyError, ValueError) as e:
+            raise InvalidData(measure) from e
 
 
 @dataclasses.dataclass
@@ -230,56 +257,42 @@ class ClientError(Exception):
     pass
 
 
-class LoginFailed(ClientError):
-    __doc__ = """
-        Cookies
-        <RequestsCookieJar[
-            Cookie(
-                version=0,
-                name='JSESSIONID',
-                value='',
-                port=None,
-                port_specified=False,
-                domain='www.i-de.es',
-                domain_specified=False,
-                domain_initial_dot=False,
-                path='/',
-                path_specified=True,
-                secure=True,
-                expires=None,
-                discard=True,
-                comment=None,
-                comment_url=None,
-                rest={'HttpOnly': None},
-                rfc2109=False
-            ),
-            # This cookie expires
-            Cookie(version=0,
-                name='NSC_wt_mc_mbssvo0Y-12009',
-                value='',
-                port=None,
-                port_specified=False,
-                domain='www.i-de.es',
-                domain_specified=False,
-                domain_initial_dot=False,
-                path='/',
-                path_specified=True,
-                secure=True,
-                expires=1626087405,
-                discard=False,
-                comment=None,
-                comment_url=None,
-                rest={'httponly': None},
-                rfc2109=False)
-        ]>
-    """
+class RequestFailedError(ClientError):
+    def __init__(self, response):
+        self.response = response
 
-    def __init__(self, code, message):
-        self.code = code
-        self.message = message
+    def __str__(self):
+        return f"Invalid response: {self.response.status!r}"
 
 
-class InvalidResponse(ClientError):
-    def __init__(self, message, data):
-        self.message = message
+class CommandError(ClientError):
+    def __init__(self, data):
         self.data = data
+
+    def __str__(self):
+        return f"Command not succesful: {self.data!r}"
+
+
+class InvalidData(ClientError):
+    def __init__(self, data):
+        self.data = data
+
+    def __str__(self):
+        return f"Invalid data from server: {self.data!r}"
+
+
+async def get_session():
+    global _AIOHTTP
+
+    if _AIOHTTP is None:
+        try:
+            import aiohttp
+
+            _AIOHTTP = aiohttp
+        except ImportError as e:
+            raise SystemError("aiohttp is required to build sessions") from e
+
+    return _AIOHTTP.ClientSession()
+
+
+_AIOHTTP = None
