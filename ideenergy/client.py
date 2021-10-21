@@ -25,7 +25,8 @@ import functools
 import json
 import logging
 
-_AIOHTTP = None
+import aiohttp
+
 _AUTO_LOGIN = True
 
 __doc__ = """
@@ -118,17 +119,7 @@ __doc__ = """
 
 
 async def get_session():
-    global _AIOHTTP
-
-    if _AIOHTTP is None:
-        try:
-            import aiohttp
-
-            _AIOHTTP = aiohttp
-        except ImportError as e:
-            raise SystemError("aiohttp is required to build sessions") from e
-
-    return _AIOHTTP.ClientSession()
+    return aiohttp.ClientSession()
 
 
 def login_required(fn):

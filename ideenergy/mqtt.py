@@ -27,7 +27,7 @@ from . import cli, get_credentials
 try:
     from paho.mqtt import publish
 except ImportError as e:
-    raise SystemError("paho.mqtt is required") from e
+    raise SystemError("paho.mqtt is required to use ideenergy.mqtt") from e
 
 
 def main():
