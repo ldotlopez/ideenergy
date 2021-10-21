@@ -65,7 +65,7 @@ async def async_get_measure(
                     file=stderr,
                 )
 
-        return None
+    return None
 
 
 def get_measure(*args, **kwargs):
