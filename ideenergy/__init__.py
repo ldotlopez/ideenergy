@@ -33,10 +33,10 @@ from .client import (
 
 
 def get_credentials(parsedargs=None, credentials=None, environ_prefix="IDEENERGY"):
-    if parsedargs.username:
+    if parsedargs and parsedargs.username:
         return parsedargs.username, parsedargs.password
 
-    credentials = credentials or parsedargs.credentials
+    credentials = credentials or getattr(parsedargs, "credentials", None)
     if credentials:
         with open(credentials, mode="r", encoding="utf-8") as fh:
             d = json.loads(fh.read())

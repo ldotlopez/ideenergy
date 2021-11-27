@@ -122,7 +122,7 @@ async def get_session():
     return aiohttp.ClientSession()
 
 
-def login_required(fn):
+def auth_required(fn):
     @functools.wraps(fn)
     async def _wrap(self, *args, **kwargs):
         global _AUTO_LOGIN
@@ -137,16 +137,16 @@ def login_required(fn):
 
 class Client:
     _BASE_URL = "https://www.i-de.es/consumidores/rest"
-    _LOGIN_ENDPOINT = f"{_BASE_URL}/loginNew/login"
-    _MEASURE_ENDPOINT = f"{_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
-    _ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
-    _CONTRACTS_ENDPOINT = f"{_BASE_URL}/cto/listaCtos/"
-
     _CONSUMPTION_PERIOD_ENDPOINT = (
         f"{_BASE_URL}/consumoNew/obtenerDatosConsumoPeriodo/"
         "fechaInicio/{start}00:00:00/"
         "fechaFinal/{end}00:00:00/"
     )
+    _CONTRACTS_ENDPOINT = f"{_BASE_URL}/cto/listaCtos/"
+    _CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/detalleCto/detalle/"
+    _ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
+    _LOGIN_ENDPOINT = f"{_BASE_URL}/loginNew/login"
+    _MEASURE_ENDPOINT = f"{_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
 
     _USER_SESSION_TIMEOUT = 300
     _HEADERS = {
@@ -226,7 +226,7 @@ class Client:
         self._logger.debug("Login successfully.")
         self._login_ts = datetime.datetime.now()
 
-    @login_required
+    @auth_required
     async def is_icp_ready(self):
         """
         {
@@ -239,7 +239,74 @@ class Client:
         except KeyError:
             raise InvalidData(data)
 
-    @login_required
+    @auth_required
+    async def get_contract_details(self):
+        """
+        {
+            "ape1Titular": "xxxxxx                                       ",
+            "ape2Titular": "xxxxxx                                       ",
+            "codCliente": "12345678",
+            "codContrato": 123456789.0,
+            "codPoblacion": "000000",
+            "codProvincia": "00",
+            "codPostal": "00000",
+            "codSociedad": 3,
+            "codTarifaIblda": "92T0",
+            "codTension": "09",
+            "cups": "ES0000000000000000XY",
+            "direccion": "C/ XXXXXXXXXXXXXXXXXX, 12 , 34 00000-XXXXXXXXXXXXXXXXXXXX - XXXXXXXXX           ",
+            "dni": "12345678Y",
+            "emailFactElec": "xxxxxxxxx@xxxxx.com",
+            "esAutoconsumidor": False,
+            "esAutogenerador": False,
+            "esPeajeDirecto": False,
+            "fecAltaContrato": "2000-01-01",
+            "fecBajaContrato": 1600000000000,
+            "fecUltActua": "22.10.2021",
+            "indEstadioPS": 4,
+            "indFraElectrn": "N",
+            "nomGestorOficina": "XXXXXXXXXXXX                                      ",
+            "nomPoblacion": "XXXXXXXXXXXXXXXXXXXX                         ",
+            "nomProvincia": "XXXXXXXXX                                    ",
+            "nomTitular": "XXXXX                                        ",
+            "numCtaBancaria": "0",
+            "numTelefono": "         ",
+            "numTelefonoAdicional": "123456789",
+            "potDia": 0.0,
+            "potMaxima": 5750,
+            "presion": "1.00",
+            "puntoSuministro": "1234567.0",
+            "tipAparato": "CN",
+            "tipCualificacion": "PP",
+            "tipEstadoContrato": "AL",
+            "tipo": "A",
+            "tipPuntoMedida": None,
+            "tipSectorEne": "01",
+            "tipSisLectura": "TG",
+            "tipSuministro": None,
+            "tipUsoEnerg": "",
+            "listContador": [
+                {
+                    "fecInstalEquipo": "28-01-2011",
+                    "propiedadEquipo": "i-DE",
+                    "tipAparato": "CONTADOR TELEGESTION",
+                    "tipMarca": "ZIV",
+                    "numSerieEquipo": 12345678.0,
+                }
+            ],
+            "esTelegestionado": True,
+            "esTelegestionadoFacturado": True,
+            "esTelemedido": False,
+            "cau": None,
+        }
+        """
+        data = await self.request("GET", self._CONTRACT_DETAILS_ENDPOINT)
+        if not data.get("codContrato", False):
+            raise InvalidData(data)
+
+        return data
+
+    @auth_required
     async def get_contracts(self):
         """
         {
@@ -272,7 +339,7 @@ class Client:
         except KeyError:
             raise InvalidData(data)
 
-    @login_required
+    @auth_required
     async def get_measure(self):
         """
         {
@@ -298,8 +365,10 @@ class Client:
         except (KeyError, ValueError) as e:
             raise InvalidData(measure) from e
 
-    @login_required
+    @auth_required
     async def get_consumption_period(self, start, end):
+        start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = end.replace(hour=0, minute=0, second=0, microsecond=0)
         start = min([start, end])
         end = max([start, end])
 
@@ -310,7 +379,22 @@ class Client:
         buff = await resp.content.read()
         buff = buff.decode(resp.charset)
         data = json.loads(buff)
-        return data
+
+        historical = data["y"]["data"][0]
+        historical = [x for x in historical if x is not None]
+        historical = [
+            (start + datetime.timedelta(hours=idx), x.get("valor", None))
+            for (idx, x) in enumerate(historical)
+        ]
+        historical = [
+            (dt, float(x) if x is not None else x) for (dt, x) in historical
+        ]
+
+        return {
+            "accumulated": float(data["acumulado"]),
+            "accumulated-co2": float(data["acumuladoCO2"]),
+            "historical": historical,
+        }
 
 
 @dataclasses.dataclass
