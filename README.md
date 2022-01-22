@@ -1,5 +1,8 @@
 # ideenergy
 
+[![Upload Python Package](https://github.com/ldotlopez/ideenergy/actions/workflows/python-publish.yml/badge.svg)](https://github.com/ldotlopez/ideenergy/actions/workflows/python-publish.yml) 
+[![CodeQL](https://github.com/ldotlopez/ideenergy/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/ldotlopez/ideenergy/actions/workflows/codeql-analysis.yml)
+
 Programmatic access to consumer energy consumption from https://www.i-de.es/ (Spanish energy distributor)
 
 **Useful links**
