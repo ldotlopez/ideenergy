@@ -386,9 +386,7 @@ class Client:
             (start + datetime.timedelta(hours=idx), x.get("valor", None))
             for (idx, x) in enumerate(historical)
         ]
-        historical = [
-            (dt, float(x) if x is not None else x) for (dt, x) in historical
-        ]
+        historical = [(dt, float(x) if x is not None else x) for (dt, x) in historical]
 
         return {
             "accumulated": float(data["acumulado"]),
