@@ -220,7 +220,7 @@ class Client:
         ]
 
         data = await self.request("POST", self._LOGIN_ENDPOINT, json=payload)
-        if not data.get("success", False):
+        if data.get("success", "false") != "true":
             raise CommandError(data)
 
         self._logger.debug("Login successfully.")
@@ -284,9 +284,7 @@ class Client:
         }
         """
 
-        self._logger.debug(
-            "Requesting data to the ICP, may take up to a minute."
-        )
+        self._logger.debug("Requesting data to the ICP, may take up to a minute.")
 
         measure = await self.request("GET", self._MEASURE_ENDPOINT)
         self._logger.debug(f"Got reply, raw data: {measure!r}")
@@ -333,11 +331,7 @@ class RequestFailedError(ClientError):
         self.response = response
 
     def __str__(self):
-        return (
-            f"Invalid response: "
-            f"{self.response.status} - "
-            f"{self.response.reason}"
-        )
+        return f"Invalid response: {self.response.status} - {self.response.reason}"
 
 
 class CommandError(ClientError):

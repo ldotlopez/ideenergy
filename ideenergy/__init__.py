@@ -28,13 +28,11 @@ from .client import (
     CommandError,
     InvalidData,
     RequestFailedError,
-    get_session
+    get_session,
 )
 
 
-def get_credentials(
-    parsedargs=None, credentials=None, environ_prefix="IDEENERGY"
-):
+def get_credentials(parsedargs=None, credentials=None, environ_prefix="IDEENERGY"):
     if parsedargs.username:
         return parsedargs.username, parsedargs.password
 

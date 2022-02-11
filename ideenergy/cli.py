@@ -97,9 +97,7 @@ def main():
         print("Missing username or password", file=sys.stderr)
         sys.exit(1)
 
-    measure = get_measure(
-        username, password, retries=args.retries, logger=logger
-    )
+    measure = get_measure(username, password, retries=args.retries, logger=logger)
     if not measure:
         sys.exit(1)
 
