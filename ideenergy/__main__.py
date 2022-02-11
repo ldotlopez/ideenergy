@@ -19,7 +19,9 @@
 # USA.
 
 
+import asyncio
+
 from . import cli
 
 if __name__ == "__main__":
-    cli.main()
+    asyncio.run(cli.main())

@@ -21,7 +21,9 @@
 
 import argparse
 import asyncio
+import datetime
 import logging
+import pprint
 import sys
 
 import aiohttp
@@ -35,12 +37,28 @@ def build_arg_parser():
     parser.add_argument("-p", "--password", required=False)
     parser.add_argument("--credentials", required=False)
     parser.add_argument("--retries", type=int, default=1)
+    parser.add_argument("--contract")
+
+    parser.add_argument("--list-contracts", action="store_true")
+    parser.add_argument("--get-measure", action="store_true")
+    parser.add_argument("--get-historical", action="store_true")
 
     return parser
 
 
-async def async_get_measure(
-    username=None, password=None, retries=1, logger=None, stderr=sys.stderr
+async def get_contracts(username, password, logger=None):
+    async with aiohttp.ClientSession() as sess:
+        client = Client(sess, username, password, logger=logger)
+        return await client.get_contracts()
+
+
+async def get_measure(
+    username=None,
+    password=None,
+    contract=None,
+    retries=1,
+    logger=None,
+    stderr=sys.stderr,
 ):
     async with aiohttp.ClientSession() as sess:
         client = Client(sess, username, password, logger=logger)
@@ -50,6 +68,9 @@ async def async_get_measure(
         except ClientError as e:
             print(f"Login failed: {e}", file=stderr)
             return
+
+        if contract:
+            await client.select_contract(contract)
 
         for i in range(1, retries + 1):
             try:
@@ -68,20 +89,18 @@ async def async_get_measure(
     return None
 
 
-def get_measure(*args, **kwargs):
-    measure = None
+async def get_consumption_period(username, password, contract=None, logger=None):
+    async with aiohttp.ClientSession() as sess:
+        client = Client(sess, username, password, logger=logger)
+        if contract:
+            await client.select_contract(contract)
 
-    async def _fn():
-        nonlocal measure
-        measure = await async_get_measure(*args, **kwargs)
-
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(_fn())
-
-    return measure
+        end = datetime.datetime.now()
+        start = end - datetime.timedelta(days=7)
+        return await client.get_consumption_period(start, end)
 
 
-def main():
+async def main():
     logging.basicConfig(
         format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
@@ -97,8 +116,31 @@ def main():
         print("Missing username or password", file=sys.stderr)
         sys.exit(1)
 
-    measure = get_measure(username, password, retries=args.retries, logger=logger)
-    if not measure:
-        sys.exit(1)
+    if args.list_contracts:
+        contracts = await get_contracts(username, password, logger=logger)
+        contracts = {x["codContrato"]: x for x in contracts}
+        print(pprint.pformat(contracts))
 
-    print(repr(measure.asdict()))
+    if args.get_measure:
+        measure = await get_measure(
+            username,
+            password,
+            retries=args.retries,
+            contract=args.contract,
+            logger=logger,
+        )
+
+        if not measure:
+            sys.exit(1)
+
+        print(pprint.pformat(measure.asdict()))
+
+    if args.get_historical:
+        historical = await get_consumption_period(
+            username, password, contract=args.contract, logger=logger
+        )
+        print(pprint.pformat(historical))
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
