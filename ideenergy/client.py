@@ -144,6 +144,7 @@ class Client:
     )
     _CONTRACTS_ENDPOINT = f"{_BASE_URL}/cto/listaCtos/"
     _CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/detalleCto/detalle/"
+    _CONTRACT_SELECTION_ENDPOINT = f"{_BASE_URL}/cto/seleccion/"
     _ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
     _LOGIN_ENDPOINT = f"{_BASE_URL}/loginNew/login"
     _MEASURE_ENDPOINT = f"{_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
@@ -340,6 +341,12 @@ class Client:
             raise InvalidData(data)
 
     @auth_required
+    async def select_contract(self, id):
+        resp = await self.request("GET", self._CONTRACT_SELECTION_ENDPOINT + id)
+        if not resp.get("success", False):
+            raise InvalidContractError(id)
+
+    @auth_required
     async def get_measure(self):
         """
         {
@@ -430,3 +437,11 @@ class InvalidData(ClientError):
 
     def __str__(self):
         return f"Invalid data from server: {self.data!r}"
+
+
+class InvalidContractError(ClientError):
+    def __init__(self, data):
+        self.data = data
+
+    def __str__(self):
+        return f"Invalid contract code: {self.data}"
