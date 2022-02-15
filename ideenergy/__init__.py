@@ -51,6 +51,10 @@ def get_credentials(parsedargs=None, credentials=None, environ_prefix="IDEENERGY
         )
 
 
+def sanitize_address(address):
+    return " ".join([x.strip().capitalize() for x in address.split(" ") if x])
+
+
 __all__ = [
     "Client",
     "ClientError",
@@ -58,5 +62,7 @@ __all__ = [
     "InvalidContractError",
     "InvalidData",
     "RequestFailedError",
+    "get_credentials",
     "get_session",
+    "sanitize_address",
 ]
