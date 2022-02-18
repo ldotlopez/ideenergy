@@ -28,6 +28,18 @@ import logging
 import aiohttp
 
 
+_BASE_URL = "https://www.i-de.es/consumidores/rest"
+_CONSUMPTION_PERIOD_ENDPOINT = (
+    f"{_BASE_URL}/consumoNew/obtenerDatosConsumoPeriodo/"
+    "fechaInicio/{start}00:00:00/"
+    "fechaFinal/{end}00:00:00/"
+)
+_CONTRACTS_ENDPOINT = f"{_BASE_URL}/cto/listaCtos/"
+_CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/detalleCto/detalle/"
+_CONTRACT_SELECTION_ENDPOINT = f"{_BASE_URL}/cto/seleccion/"
+_ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
+_LOGIN_ENDPOINT = f"{_BASE_URL}/loginNew/login"
+_MEASURE_ENDPOINT = f"{_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
 
 
 async def get_session():
@@ -37,8 +49,7 @@ async def get_session():
 def auth_required(fn):
     @functools.wraps(fn)
     async def _wrap(self, *args, **kwargs):
-        global _AUTO_LOGIN
-        if _AUTO_LOGIN is True and self.user_is_logged is False:
+        if self._auto_renew_user_session is True and self.user_is_logged is False:
             self._logger.warning("User is not logged or session is too old")
             await self.login()
 
@@ -48,20 +59,6 @@ def auth_required(fn):
 
 
 class Client:
-    _BASE_URL = "https://www.i-de.es/consumidores/rest"
-    _CONSUMPTION_PERIOD_ENDPOINT = (
-        f"{_BASE_URL}/consumoNew/obtenerDatosConsumoPeriodo/"
-        "fechaInicio/{start}00:00:00/"
-        "fechaFinal/{end}00:00:00/"
-    )
-    _CONTRACTS_ENDPOINT = f"{_BASE_URL}/cto/listaCtos/"
-    _CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/detalleCto/detalle/"
-    _CONTRACT_SELECTION_ENDPOINT = f"{_BASE_URL}/cto/seleccion/"
-    _ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
-    _LOGIN_ENDPOINT = f"{_BASE_URL}/loginNew/login"
-    _MEASURE_ENDPOINT = f"{_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
-
-    _USER_SESSION_TIMEOUT = 300
     _HEADERS = {
         "Content-Type": "application/json; charset=utf-8",
         "esVersionNueva": "1",
@@ -74,9 +71,19 @@ class Client:
         ),
     }
 
-    def __init__(self, session, username, password, logger=None):
+    def __init__(
+        self,
+        session,
+        username,
+        password,
+        logger=None,
+        user_session_timeout=300,
+        auto_renew_user_session=True,
+    ):
         self.username = username
         self.password = password
+        self._user_session_timeout = user_session_timeout
+        self._auto_renew_user_session = auto_renew_user_session
         self._logger = logger or logging.getLogger("ideenergy")
         self._sess = session
         self._login_ts = None
@@ -87,7 +94,7 @@ class Client:
             return False
 
         delta = datetime.datetime.now() - self._login_ts
-        return delta.total_seconds() < self._USER_SESSION_TIMEOUT
+        return delta.total_seconds() < self._user_session_timeout
 
     async def raw_request(self, method, url, **kwargs):
         headers = kwargs.get("headers", {})
@@ -132,7 +139,7 @@ class Client:
             "n",
         ]
 
-        data = await self.request("POST", self._LOGIN_ENDPOINT, json=payload)
+        data = await self.request("POST", _LOGIN_ENDPOINT, json=payload)
         if data.get("success", "false") != "true":
             raise CommandError(data)
 
@@ -146,7 +153,7 @@ class Client:
             'icp': 'trueConectado'
         }
         """
-        data = self.request("POST", self._ICP_STATUS_ENDPOINT)
+        data = self.request("POST", _ICP_STATUS_ENDPOINT)
         try:
             return data["icp"] == "trueConectado"
         except KeyError:
@@ -213,7 +220,7 @@ class Client:
             "cau": None,
         }
         """
-        data = await self.request("GET", self._CONTRACT_DETAILS_ENDPOINT)
+        data = await self.request("GET", _CONTRACT_DETAILS_ENDPOINT)
         if not data.get("codContrato", False):
             raise InvalidData(data)
 
@@ -243,7 +250,7 @@ class Client:
             ]
         }
         """
-        data = await self.request("GET", self._CONTRACTS_ENDPOINT)
+        data = await self.request("GET", _CONTRACTS_ENDPOINT)
         if not data.get("success", False):
             raise CommandError(data)
 
@@ -254,7 +261,7 @@ class Client:
 
     @auth_required
     async def select_contract(self, id):
-        resp = await self.request("GET", self._CONTRACT_SELECTION_ENDPOINT + id)
+        resp = await self.request("GET", _CONTRACT_SELECTION_ENDPOINT + id)
         if not resp.get("success", False):
             raise InvalidContractError(id)
 
@@ -272,7 +279,7 @@ class Client:
 
         self._logger.debug("Requesting data to the ICP, may take up to a minute.")
 
-        measure = await self.request("GET", self._MEASURE_ENDPOINT)
+        measure = await self.request("GET", _MEASURE_ENDPOINT)
         self._logger.debug(f"Got reply, raw data: {measure!r}")
 
         try:
@@ -291,7 +298,7 @@ class Client:
         start = min([start, end])
         end = max([start, end])
 
-        url = self._CONSUMPTION_PERIOD_ENDPOINT.format(
+        url = _CONSUMPTION_PERIOD_ENDPOINT.format(
             start=start.strftime("%d-%m-%Y"), end=end.strftime("%d-%m-%Y")
         )
         resp = await self.raw_request("GET", url)
