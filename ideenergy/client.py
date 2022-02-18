@@ -48,12 +48,12 @@ async def get_session():
 
 def auth_required(fn):
     @functools.wraps(fn)
-    async def _wrap(self, *args, **kwargs):
-        if self._auto_renew_user_session is True and self.user_is_logged is False:
-            self._logger.warning("User is not logged or session is too old")
-            await self.login()
+    async def _wrap(client, *args, **kwargs):
+        if client._auto_renew_user_session is True and client.is_logged is False:
+            client._logger.warning("User is not logged or session is too old")
+            await client.login()
 
-        return await fn(self, *args, **kwargs)
+        return await fn(client, *args, **kwargs)
 
     return _wrap
 
@@ -89,7 +89,7 @@ class Client:
         self._login_ts = None
 
     @property
-    def user_is_logged(self):
+    def is_logged(self):
         if not self._login_ts:
             return False
 
