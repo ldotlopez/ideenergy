@@ -86,16 +86,28 @@ class Client:
         username: str,
         password: str,
         logger: Optional[logging.Logger] = None,
-        user_session_timeout: int = 300,
+        user_session_timeout: Union[int, datetime.timedelta] = 300,
         auto_renew_user_session: bool = True,
     ):
-        self.username = username
-        self.password = password
+        if isinstance(user_session_timeout, int):
+            user_session_timeout = datetime.timedelta(seconds=user_session_timeout)
+
+        self._sess = session
+        self._username = username
+        self._password = password
+        self._logger = logger or logging.getLogger("ideenergy")
         self._user_session_timeout = user_session_timeout
         self._auto_renew_user_session = auto_renew_user_session
-        self._logger = logger or logging.getLogger("ideenergy")
-        self._sess = session
+
         self._login_ts: Optional[datetime.datetime] = None
+
+    @property
+    def username(self):
+        return self._username
+
+    @property
+    def password(self):
+        return self._password
 
     @property
     def is_logged(self) -> bool:
@@ -103,7 +115,15 @@ class Client:
             return False
 
         delta = datetime.datetime.now() - self._login_ts
-        return delta.total_seconds() < self._user_session_timeout
+        return delta < self.user_session_timeout
+
+    @property
+    def user_session_timeout(self):
+        return self._user_session_timeout
+
+    @property
+    def auto_renew_user_session(self):
+        return self._auto_renew_user_session
 
     async def raw_request(
         self, method: str, url: str, **kwargs
@@ -185,7 +205,8 @@ class Client:
             "codTarifaIblda": "92T0",
             "codTension": "09",
             "cups": "ES0000000000000000XY",
-            "direccion": "C/ XXXXXXXXXXXXXXXXXX, 12 , 34 00000-XXXXXXXXXXXXXXXXXXXX - XXXXXXXXX           ",
+            "direccion": "C/ XXXXXXXXXXXXXXXXXX, 12 , 34 00000-XXXXXXXXXXXXXXXXXXXX"
+                " - XXXXXXXXX           ",
             "dni": "12345678Y",
             "emailFactElec": "xxxxxxxxx@xxxxx.com",
             "esAutoconsumidor": False,
@@ -365,4 +386,4 @@ class InvalidContractError(ClientError):
         self.data = data
 
     def __str__(self):
-        return f"Invalid contract code: {self.data}"
+        return f"Invalid contract code: {self.data!r}"
