@@ -24,9 +24,9 @@ import datetime
 import functools
 import json
 import logging
+from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
-
 
 _BASE_URL = "https://www.i-de.es/consumidores/rest"
 _CONSUMPTION_PERIOD_ENDPOINT = (
@@ -42,7 +42,7 @@ _LOGIN_ENDPOINT = f"{_BASE_URL}/loginNew/login"
 _MEASURE_ENDPOINT = f"{_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
 
 
-async def get_session():
+async def get_session() -> aiohttp.ClientSession:
     return aiohttp.ClientSession()
 
 
@@ -56,6 +56,15 @@ def auth_required(fn):
         return await fn(client, *args, **kwargs)
 
     return _wrap
+
+
+@dataclasses.dataclass
+class Measure:
+    accumulate: int
+    instant: float
+
+    def asdict(self) -> Dict[str, Union[int, float]]:
+        return dataclasses.asdict(self)
 
 
 class Client:
@@ -73,12 +82,12 @@ class Client:
 
     def __init__(
         self,
-        session,
-        username,
-        password,
-        logger=None,
-        user_session_timeout=300,
-        auto_renew_user_session=True,
+        session: aiohttp.ClientSession,
+        username: str,
+        password: str,
+        logger: Optional[logging.Logger] = None,
+        user_session_timeout: int = 300,
+        auto_renew_user_session: bool = True,
     ):
         self.username = username
         self.password = password
@@ -86,17 +95,19 @@ class Client:
         self._auto_renew_user_session = auto_renew_user_session
         self._logger = logger or logging.getLogger("ideenergy")
         self._sess = session
-        self._login_ts = None
+        self._login_ts: Optional[datetime.datetime] = None
 
     @property
-    def is_logged(self):
+    def is_logged(self) -> bool:
         if not self._login_ts:
             return False
 
         delta = datetime.datetime.now() - self._login_ts
         return delta.total_seconds() < self._user_session_timeout
 
-    async def raw_request(self, method, url, **kwargs):
+    async def raw_request(
+        self, method: str, url: str, **kwargs
+    ) -> aiohttp.ClientResponse:
         headers = kwargs.get("headers", {})
         headers.update(self._HEADERS)
         kwargs["headers"] = headers
@@ -107,7 +118,7 @@ class Client:
 
         return resp
 
-    async def request(self, method, url, **kwargs):
+    async def request(self, method: str, url: str, **kwargs) -> Dict[str, Any]:
         resp = await self.raw_request(method, url, **kwargs)
 
         if resp.status != 200:
@@ -115,7 +126,7 @@ class Client:
 
         return await resp.json()
 
-    async def login(self):
+    async def login(self) -> None:
         """
         {
             'redirect': 'informacion-del-contrato',
@@ -147,20 +158,20 @@ class Client:
         self._login_ts = datetime.datetime.now()
 
     @auth_required
-    async def is_icp_ready(self):
+    async def is_icp_ready(self) -> bool:
         """
         {
             'icp': 'trueConectado'
         }
         """
-        data = self.request("POST", _ICP_STATUS_ENDPOINT)
+        data = await self.request("POST", _ICP_STATUS_ENDPOINT)
         try:
-            return data["icp"] == "trueConectado"
+            return data.get("icp", "") == "trueConectado"
         except KeyError:
             raise InvalidData(data)
 
     @auth_required
-    async def get_contract_details(self):
+    async def get_contract_details(self) -> Dict[str, Any]:
         """
         {
             "ape1Titular": "xxxxxx                                       ",
@@ -227,7 +238,7 @@ class Client:
         return data
 
     @auth_required
-    async def get_contracts(self):
+    async def get_contracts(self) -> List[Dict[str, Any]]:
         """
         {
             'success': true,
@@ -260,13 +271,13 @@ class Client:
             raise InvalidData(data)
 
     @auth_required
-    async def select_contract(self, id):
+    async def select_contract(self, id: str) -> None:
         resp = await self.request("GET", _CONTRACT_SELECTION_ENDPOINT + id)
         if not resp.get("success", False):
             raise InvalidContractError(id)
 
     @auth_required
-    async def get_measure(self):
+    async def get_measure(self) -> Measure:
         """
         {
             "valMagnitud": "158.64",
@@ -292,7 +303,7 @@ class Client:
             raise InvalidData(measure) from e
 
     @auth_required
-    async def get_consumption_period(self, start, end):
+    async def get_consumption_period(self, start, end) -> Dict[str, Any]:
         start = start.replace(hour=0, minute=0, second=0, microsecond=0)
         end = end.replace(hour=0, minute=0, second=0, microsecond=0)
         start = min([start, end])
@@ -319,15 +330,6 @@ class Client:
             "accumulated-co2": float(data["acumuladoCO2"]),
             "historical": historical,
         }
-
-
-@dataclasses.dataclass
-class Measure:
-    accumulate: int
-    instant: int
-
-    def asdict(self):
-        return dataclasses.asdict(self)
 
 
 class ClientError(Exception):
