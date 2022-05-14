@@ -384,10 +384,20 @@ class Client:
         )
         resp = await self.raw_request("GET", url)
         buff = await resp.content.read()
-        buff = buff.decode(resp.charset)
-        data = json.loads(buff)
 
-        return parser(data)
+        try:
+            buff = buff.decode(resp.charset)
+            data = json.loads(buff)
+
+            return parser(data)
+
+        except (TypeError, json.JSONDecodeError) as e:
+            raise InvalidData(buff) from e
+
+        except NotImplementedError as e:
+            raise NotImplementedError(
+                f"Request type not implemented: {req_type}. server data: {buff!r}"
+            ) from e
 
 
 class ClientError(Exception):
