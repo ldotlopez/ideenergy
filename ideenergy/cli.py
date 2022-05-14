@@ -102,7 +102,7 @@ async def get_historical_data(username, password, req_type, contract=None, logge
         if contract:
             await client.select_contract(contract)
 
-        end = datetime.datetime.now()
+        end = datetime.date.today()
         start = end - datetime.timedelta(days=7)
         return await client.get_historical_data(req_type, start, end)
 

@@ -333,12 +333,15 @@ class Client:
             raise InvalidData(measure) from e
 
     @auth_required
-    async def get_historical_data(self, req_type, start, end) -> Dict[str, Any]:
+    async def get_historical_data(
+        self, req_type: HistoricalRequest, start: datetime.date, end: datetime.date
+    ) -> Dict[str, Any]:
         def _consumption_parser(data: Dict) -> Dict[str, Any]:
+            base = datetime.datetime(start.year, start.month, start.day)
             historical = data["y"]["data"][0]
             historical = [x for x in historical if x is not None]
             historical = [
-                (start + datetime.timedelta(hours=idx), x.get("valor", None))
+                (base + datetime.timedelta(hours=idx), x.get("valor", None))
                 for (idx, x) in enumerate(historical)
             ]
             historical = [
@@ -370,8 +373,6 @@ class Client:
         except KeyError as e:
             raise ValueError(req_type, "Unknow historical request") from e
 
-        start = start.replace(hour=0, minute=0, second=0, microsecond=0)
-        end = end.replace(hour=0, minute=0, second=0, microsecond=0)
         start = min([start, end])
         end = max([start, end])
 
