@@ -180,6 +180,9 @@ class Client:
         ]
 
         data = await self.request("POST", _LOGIN_ENDPOINT, json=payload)
+        if not isinstance(data, dict):
+            raise InvalidData(data)
+
         if data.get("success", "false") != "true":
             raise CommandError(data)
 
