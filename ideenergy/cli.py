@@ -28,7 +28,13 @@ import sys
 
 import aiohttp
 
-from ideenergy import Client, ClientError, RequestFailedError, get_credentials
+from ideenergy import (
+    Client,
+    ClientError,
+    RequestFailedError,
+    get_credentials,
+    HistoricalRequest,
+)
 
 
 def build_arg_parser():
@@ -41,7 +47,8 @@ def build_arg_parser():
 
     parser.add_argument("--list-contracts", action="store_true")
     parser.add_argument("--get-measure", action="store_true")
-    parser.add_argument("--get-historical", action="store_true")
+    parser.add_argument("--get-historical-consumption", action="store_true")
+    parser.add_argument("--get-historical-generation", action="store_true")
 
     return parser
 
@@ -89,7 +96,7 @@ async def get_measure(
     return None
 
 
-async def get_consumption_period(username, password, contract=None, logger=None):
+async def get_historical_data(username, password, req_type, contract=None, logger=None):
     async with aiohttp.ClientSession() as sess:
         client = Client(sess, username, password, logger=logger)
         if contract:
@@ -97,7 +104,7 @@ async def get_consumption_period(username, password, contract=None, logger=None)
 
         end = datetime.datetime.now()
         start = end - datetime.timedelta(days=7)
-        return await client.get_consumption_period(start, end)
+        return await client.get_historical_data(req_type, start, end)
 
 
 async def main():
@@ -135,9 +142,23 @@ async def main():
 
         print(pprint.pformat(measure.asdict()))
 
-    if args.get_historical:
-        historical = await get_consumption_period(
-            username, password, contract=args.contract, logger=logger
+    if args.get_historical_consumption:
+        historical = await get_historical_data(
+            username,
+            password,
+            HistoricalRequest.CONSUMPTION,
+            contract=args.contract,
+            logger=logger,
+        )
+        print(pprint.pformat(historical))
+
+    if args.get_historical_generation:
+        historical = await get_historical_data(
+            username,
+            password,
+            req_type=HistoricalRequest.GENERATION,
+            contract=args.contract,
+            logger=logger,
         )
         print(pprint.pformat(historical))
 

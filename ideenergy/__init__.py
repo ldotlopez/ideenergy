@@ -26,10 +26,11 @@ from .client import (
     Client,
     ClientError,
     CommandError,
+    get_session,
+    HistoricalRequest,
     InvalidContractError,
     InvalidData,
     RequestFailedError,
-    get_session,
 )
 
 
@@ -59,11 +60,12 @@ __all__ = [
     "Client",
     "ClientError",
     "CommandError",
+    "get_credentials",
+    "get_session",
+    "HistoricalRequest",
     "InvalidContractError",
     "InvalidData",
     "RequestFailedError",
-    "get_credentials",
-    "get_session",
     "sanitize_address",
 ]
 

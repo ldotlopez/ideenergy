@@ -20,6 +20,7 @@
 
 
 import dataclasses
+import enum
 import datetime
 import functools
 import json
@@ -31,12 +32,15 @@ import aiohttp
 _BASE_URL = "https://www.i-de.es/consumidores/rest"
 _CONSUMPTION_PERIOD_ENDPOINT = (
     f"{_BASE_URL}/consumoNew/obtenerDatosConsumoPeriodo/"
-    "fechaInicio/{start}00:00:00/"
-    "fechaFinal/{end}00:00:00/"
+    "fechaInicio/{start}00:00:00/fechaFinal/{end}00:00:00/"
 )
 _CONTRACTS_ENDPOINT = f"{_BASE_URL}/cto/listaCtos/"
 _CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/detalleCto/detalle/"
 _CONTRACT_SELECTION_ENDPOINT = f"{_BASE_URL}/cto/seleccion/"
+_GENERATION_PERIOD_ENDPOINT = (
+    f"{_BASE_URL}consumoNew/obtenerDatosGeneracionPeriodo/"
+    "fechaInicio/{start}00:00:00/fechaFinal/{end}00:00:00/"
+)
 _ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
 _LOGIN_ENDPOINT = f"{_BASE_URL}/loginNew/login"
 _MEASURE_ENDPOINT = f"{_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
@@ -65,6 +69,11 @@ class Measure:
 
     def asdict(self) -> Dict[str, Union[int, float]]:
         return dataclasses.asdict(self)
+
+
+class HistoricalRequest(enum.Enum):
+    CONSUMPTION = enum.auto()
+    GENERATION = enum.auto()
 
 
 class Client:
@@ -324,13 +333,49 @@ class Client:
             raise InvalidData(measure) from e
 
     @auth_required
-    async def get_consumption_period(self, start, end) -> Dict[str, Any]:
+    async def get_historical_data(self, req_type, start, end) -> Dict[str, Any]:
+        def _consumption_parser(data: Dict) -> Dict[str, Any]:
+            historical = data["y"]["data"][0]
+            historical = [x for x in historical if x is not None]
+            historical = [
+                (start + datetime.timedelta(hours=idx), x.get("valor", None))
+                for (idx, x) in enumerate(historical)
+            ]
+            historical = [
+                (dt, float(x) if x is not None else x) for (dt, x) in historical
+            ]
+
+            return {
+                "accumulated": float(data["acumulado"]),
+                "accumulated-co2": float(data["acumuladoCO2"]),
+                "historical": historical,
+            }
+
+        def _generation_parser(data) -> Dict[str, Any]:
+            raise NotImplementedError()
+
+        backends = {
+            HistoricalRequest.CONSUMPTION: (
+                _CONSUMPTION_PERIOD_ENDPOINT,
+                _consumption_parser,
+            ),
+            HistoricalRequest.GENERATION: (
+                _GENERATION_PERIOD_ENDPOINT,
+                _generation_parser,
+            ),
+        }
+
+        try:
+            endpoint_url, parser = backends[req_type]
+        except KeyError as e:
+            raise ValueError(req_type, "Unknow historical request") from e
+
         start = start.replace(hour=0, minute=0, second=0, microsecond=0)
         end = end.replace(hour=0, minute=0, second=0, microsecond=0)
         start = min([start, end])
         end = max([start, end])
 
-        url = _CONSUMPTION_PERIOD_ENDPOINT.format(
+        url = endpoint_url.format(
             start=start.strftime("%d-%m-%Y"), end=end.strftime("%d-%m-%Y")
         )
         resp = await self.raw_request("GET", url)
@@ -338,19 +383,7 @@ class Client:
         buff = buff.decode(resp.charset)
         data = json.loads(buff)
 
-        historical = data["y"]["data"][0]
-        historical = [x for x in historical if x is not None]
-        historical = [
-            (start + datetime.timedelta(hours=idx), x.get("valor", None))
-            for (idx, x) in enumerate(historical)
-        ]
-        historical = [(dt, float(x) if x is not None else x) for (dt, x) in historical]
-
-        return {
-            "accumulated": float(data["acumulado"]),
-            "accumulated-co2": float(data["acumuladoCO2"]),
-            "historical": historical,
-        }
+        return parser(data)
 
 
 class ClientError(Exception):
