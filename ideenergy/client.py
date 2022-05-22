@@ -54,7 +54,9 @@ def auth_required(fn):
     @functools.wraps(fn)
     async def _wrap(client, *args, **kwargs):
         if client._auto_renew_user_session is True and client.is_logged is False:
-            client._logger.warning("User is not logged or session is too old")
+            client._logger.warning(
+                f"{client}: User is not logged or session is too old"
+            )
             await client.login()
 
         return await fn(client, *args, **kwargs)
@@ -94,6 +96,7 @@ class Client:
         session: aiohttp.ClientSession,
         username: str,
         password: str,
+        contract: Optional[str] = None,
         logger: Optional[logging.Logger] = None,
         user_session_timeout: Union[int, datetime.timedelta] = 300,
         auto_renew_user_session: bool = True,
@@ -104,6 +107,7 @@ class Client:
         self._sess = session
         self._username = username
         self._password = password
+        self._contract = contract
         self._logger = logger or logging.getLogger("ideenergy")
         self._user_session_timeout = user_session_timeout
         self._auto_renew_user_session = auto_renew_user_session
@@ -186,8 +190,15 @@ class Client:
         if data.get("success", "false") != "true":
             raise CommandError(data)
 
-        self._logger.debug("Login successfully.")
         self._login_ts = datetime.datetime.now()
+
+        if self._contract:
+            await self.select_contract(self._contract)
+
+        self._logger.info(
+            f"Login successful for {self.username}, "
+            f"using {self._contract if self._contract else 'default'} contract"
+        )
 
     @auth_required
     async def is_icp_ready(self) -> bool:
@@ -198,9 +209,12 @@ class Client:
         """
         data = await self.request("POST", _ICP_STATUS_ENDPOINT)
         try:
-            return data.get("icp", "") == "trueConectado"
+            ret = data.get("icp", "") == "trueConectado"
         except KeyError:
             raise InvalidData(data)
+
+        self._logger.info(f"{self}: ICP is {'ready' if ret else 'NOT ready'}")
+        return ret
 
     @auth_required
     async def get_contract_details(self) -> Dict[str, Any]:
@@ -309,6 +323,8 @@ class Client:
         if not resp.get("success", False):
             raise InvalidContractError(id)
 
+        self._logger.info(f"{self}: '{id}' contract selected")
+
     @auth_required
     async def get_measure(self) -> Measure:
         """
@@ -323,17 +339,20 @@ class Client:
 
         self._logger.debug("Requesting data to the ICP, may take up to a minute.")
 
-        measure = await self.request("GET", _MEASURE_ENDPOINT)
-        self._logger.debug(f"Got reply, raw data: {measure!r}")
+        data = await self.request("GET", _MEASURE_ENDPOINT)
+        self._logger.debug(f"Got reply, raw data: {data!r}")
 
         try:
-            return Measure(
-                accumulate=int(measure["valLecturaContador"]),
-                instant=float(measure["valMagnitud"]),
+            measure = Measure(
+                accumulate=int(data["valLecturaContador"]),
+                instant=float(data["valMagnitud"]),
             )
 
         except (KeyError, ValueError) as e:
             raise InvalidData(measure) from e
+
+        self._logger.info(f"{self}: ICP measure reading successful")
+        return measure
 
     @auth_required
     async def get_historical_data(
@@ -389,7 +408,7 @@ class Client:
             buff = buff.decode(resp.charset)
             data = json.loads(buff)
 
-            return parser(data)
+            ret = parser(data)
 
         except (TypeError, json.JSONDecodeError) as e:
             raise InvalidData(buff) from e
@@ -398,6 +417,12 @@ class Client:
             raise NotImplementedError(
                 f"Request type not implemented: {req_type}. server data: {buff!r}"
             ) from e
+
+        self._logger.info(f"{self}: {req_type} reading successful")
+        return ret
+
+    def __repr__(self):
+        return f"<ideenergy.Client username={self.username}, contract={self._contract}>"
 
 
 class ClientError(Exception):
