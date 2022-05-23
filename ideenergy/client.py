@@ -98,10 +98,10 @@ class Client:
         password: str,
         contract: Optional[str] = None,
         logger: Optional[logging.Logger] = None,
-        user_session_timeout: Union[int, datetime.timedelta] = 300,
+        user_session_timeout: Union[datetime.timedelta, int] = 300,
         auto_renew_user_session: bool = True,
     ):
-        if isinstance(user_session_timeout, int):
+        if not isinstance(user_session_timeout, datetime.timedelta):
             user_session_timeout = datetime.timedelta(seconds=user_session_timeout)
 
         self._sess = session
@@ -115,11 +115,11 @@ class Client:
         self._login_ts: Optional[datetime.datetime] = None
 
     @property
-    def username(self):
+    def username(self) -> str:
         return self._username
 
     @property
-    def password(self):
+    def password(self) -> str:
         return self._password
 
     @property
@@ -131,11 +131,11 @@ class Client:
         return delta < self.user_session_timeout
 
     @property
-    def user_session_timeout(self):
+    def user_session_timeout(self) -> datetime.timedelta:
         return self._user_session_timeout
 
     @property
-    def auto_renew_user_session(self):
+    def auto_renew_user_session(self) -> bool:
         return self._auto_renew_user_session
 
     async def raw_request(
