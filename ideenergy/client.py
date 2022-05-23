@@ -323,6 +323,7 @@ class Client:
         if not resp.get("success", False):
             raise InvalidContractError(id)
 
+        self._contract = id
         self._logger.info(f"{self}: '{id}' contract selected")
 
     @auth_required
