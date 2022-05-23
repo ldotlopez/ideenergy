@@ -107,7 +107,7 @@ async def get_historical_data(username, password, req_type, contract=None, logge
         return await client.get_historical_data(req_type, start, end)
 
 
-async def main():
+async def async_main():
     logging.basicConfig(
         format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
@@ -163,5 +163,9 @@ async def main():
         print(pprint.pformat(historical))
 
 
+def main():
+    asyncio.run(async_main())
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
