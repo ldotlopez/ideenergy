@@ -38,7 +38,7 @@ _CONTRACTS_ENDPOINT = f"{_BASE_URL}/cto/listaCtos/"
 _CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/detalleCto/detalle/"
 _CONTRACT_SELECTION_ENDPOINT = f"{_BASE_URL}/cto/seleccion/"
 _GENERATION_PERIOD_ENDPOINT = (
-    f"{_BASE_URL}consumoNew/obtenerDatosGeneracionPeriodo/"
+    f"{_BASE_URL}/consumoNew/obtenerDatosGeneracionPeriodo/"
     "fechaInicio/{start}00:00:00/fechaFinal/{end}00:00:00/"
 )
 _ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
@@ -359,7 +359,7 @@ class Client:
     async def get_historical_data(
         self, req_type: HistoricalRequest, start: datetime.date, end: datetime.date
     ) -> Dict[str, Any]:
-        def _consumption_parser(data: Dict) -> Dict[str, Any]:
+        def _historical_parser(data: Dict) -> Dict[str, Any]:
             base = datetime.datetime(start.year, start.month, start.day)
             historical = data["y"]["data"][0]
             historical = [x for x in historical if x is not None]
@@ -377,8 +377,11 @@ class Client:
                 "historical": historical,
             }
 
+        def _consumption_parser(data: Dict) -> Dict[str, Any]:
+            return _historical_parser(data)
+
         def _generation_parser(data) -> Dict[str, Any]:
-            raise NotImplementedError()
+            return _historical_parser(data)
 
         backends = {
             HistoricalRequest.CONSUMPTION: (
