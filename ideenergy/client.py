@@ -350,7 +350,7 @@ class Client:
             )
 
         except (KeyError, ValueError) as e:
-            raise InvalidData(measure) from e
+            raise InvalidData(data) from e
 
         self._logger.info(f"{self}: ICP measure reading successful")
         return measure

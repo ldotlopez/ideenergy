@@ -84,12 +84,11 @@ async def get_measure(
                 return await client.get_measure()
 
             except RequestFailedError as e:
-                print(f"Request failed, aborted: {e}")
-                break
+                print(f"Request failed: {e}")
 
             except ClientError as e:
                 print(
-                    f"Client error: {e}) " f"(attempt {i} of {retries})",
+                    f"Client error: {e} (attempt {i} of {retries})",
                     file=stderr,
                 )
 
