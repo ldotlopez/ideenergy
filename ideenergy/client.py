@@ -54,9 +54,6 @@ def auth_required(fn):
     @functools.wraps(fn)
     async def _wrap(client, *args, **kwargs):
         if client._auto_renew_user_session is True and client.is_logged is False:
-            client._logger.warning(
-                f"{client}: User is not logged or session is too old"
-            )
             await client.login()
 
         return await fn(client, *args, **kwargs)
@@ -339,7 +336,6 @@ class Client:
         """
 
         self._logger.debug("Requesting data to the ICP, may take up to a minute.")
-
         data = await self.request("GET", _MEASURE_ENDPOINT)
         self._logger.debug(f"Got reply, raw data: {data!r}")
 
