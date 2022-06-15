@@ -192,10 +192,7 @@ class Client:
         if self._contract:
             await self.select_contract(self._contract)
 
-        self._logger.info(
-            f"Login successful for {self.username}, "
-            f"using {self._contract if self._contract else 'default'} contract"
-        )
+        self._logger.info(f"{self}: successful authentication")
 
     @auth_required
     async def is_icp_ready(self) -> bool:
