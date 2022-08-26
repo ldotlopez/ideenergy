@@ -397,8 +397,8 @@ class Client:
         url = _POWER_DEMAND_PERIOD_ENDPOINT.format(
             fecMin=data["fecMin"], fecMax=data["fecMax"]
         )
-        resp = await self.raw_request("GET", url)
-        data = json.loads((await resp.content.read()).decode("utf-8"))
+
+        data = await self.request_json("GET", url)
         assert data.get("resultado") == "correcto"
 
         return data["potMaxMens"]
