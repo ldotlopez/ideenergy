@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 aiohttp = "*"
+attrs = "==21.2.0"
 
 [dev-packages]
 ipdb = "*"

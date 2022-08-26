@@ -61,7 +61,6 @@ def auth_required(fn):
     @functools.wraps(fn)
     async def _wrap(client, *args, **kwargs):
         if client._auto_renew_user_session is True and client.is_logged is False:
-            client._logger.debug(f"{client}: User is not logged or session is too old")
             await client.login()
 
         return await fn(client, *args, **kwargs)
@@ -195,10 +194,7 @@ class Client:
         if self._contract:
             await self.select_contract(self._contract)
 
-        self._logger.info(
-            f"Login successful for {self.username}, "
-            f"using {self._contract if self._contract else 'default'} contract"
-        )
+        self._logger.info(f"{self}: successful authentication")
 
     @auth_required
     async def is_icp_ready(self) -> bool:
@@ -335,8 +331,8 @@ class Client:
         """
 
         self._logger.debug("Requesting data to the ICP, may take up to a minute.")
-
         data = await self.request_json("GET", _MEASURE_ENDPOINT)
+
         self._logger.debug(f"Got reply, raw data: {data!r}")
 
         try:
