@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2021-2022 Luis López <luis@cuarentaydos.com>
@@ -27,7 +26,6 @@ from .client import (
     ClientError,
     CommandError,
     get_session,
-    HistoricalRequest,
     InvalidContractError,
     InvalidData,
     RequestFailedError,
@@ -62,7 +60,6 @@ __all__ = [
     "CommandError",
     "get_credentials",
     "get_session",
-    "HistoricalRequest",
     "InvalidContractError",
     "InvalidData",
     "RequestFailedError",

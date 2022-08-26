@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2021-2022 Luis López <luis@cuarentaydos.com>
@@ -20,11 +19,10 @@
 
 
 import dataclasses
-import enum
-import datetime
 import functools
 import json
 import logging
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
@@ -32,18 +30,27 @@ import aiohttp
 _BASE_URL = "https://www.i-de.es/consumidores/rest"
 _CONSUMPTION_PERIOD_ENDPOINT = (
     f"{_BASE_URL}/consumoNew/obtenerDatosConsumoPeriodo/"
-    "fechaInicio/{start}00:00:00/fechaFinal/{end}00:00:00/"
+    "fechaInicio/{start:%d-%m-%Y}00:00:00/"
+    "fechaFinal/{end:%d-%m-%Y}00:00:00/"
 )
 _CONTRACTS_ENDPOINT = f"{_BASE_URL}/cto/listaCtos/"
 _CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/detalleCto/detalle/"
 _CONTRACT_SELECTION_ENDPOINT = f"{_BASE_URL}/cto/seleccion/"
 _GENERATION_PERIOD_ENDPOINT = (
     f"{_BASE_URL}/consumoNew/obtenerDatosGeneracionPeriodo/"
-    "fechaInicio/{start}00:00:00/fechaFinal/{end}00:00:00/"
+    "fechaInicio/{start:%d-%m-%Y}00:00:00/"
+    "fechaFinal/{end:%d-%m-%Y}00:00:00/"
 )
 _ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
 _LOGIN_ENDPOINT = f"{_BASE_URL}/loginNew/login"
 _MEASURE_ENDPOINT = f"{_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
+
+_POWER_DEMAND_LIMITS_ENDPOINT = f"{_BASE_URL}/consumoNew/obtenerLimitesFechasPotencia/"
+_POWER_DEMAND_PERIOD_ENDPOINT = (
+    f"{_BASE_URL}/consumoNew/obtenerPotenciasMaximasRangoV2/"
+    # fecMin and fecMax are provided by _POWER_DEMAND_LIMITS_ENDPOINT
+    "{fecMin}/{fecMax}"
+)
 
 
 async def get_session() -> aiohttp.ClientSession:
@@ -54,9 +61,7 @@ def auth_required(fn):
     @functools.wraps(fn)
     async def _wrap(client, *args, **kwargs):
         if client._auto_renew_user_session is True and client.is_logged is False:
-            client._logger.warning(
-                f"{client}: User is not logged or session is too old"
-            )
+            client._logger.debug(f"{client}: User is not logged or session is too old")
             await client.login()
 
         return await fn(client, *args, **kwargs)
@@ -71,11 +76,6 @@ class Measure:
 
     def asdict(self) -> Dict[str, Union[int, float]]:
         return dataclasses.asdict(self)
-
-
-class HistoricalRequest(enum.Enum):
-    CONSUMPTION = enum.auto()
-    GENERATION = enum.auto()
 
 
 class Client:
@@ -98,11 +98,11 @@ class Client:
         password: str,
         contract: Optional[str] = None,
         logger: Optional[logging.Logger] = None,
-        user_session_timeout: Union[datetime.timedelta, int] = 300,
+        user_session_timeout: Union[timedelta, int] = 300,
         auto_renew_user_session: bool = True,
     ):
-        if not isinstance(user_session_timeout, datetime.timedelta):
-            user_session_timeout = datetime.timedelta(seconds=user_session_timeout)
+        if not isinstance(user_session_timeout, timedelta):
+            user_session_timeout = timedelta(seconds=user_session_timeout)
 
         self._sess = session
         self._username = username
@@ -112,7 +112,7 @@ class Client:
         self._user_session_timeout = user_session_timeout
         self._auto_renew_user_session = auto_renew_user_session
 
-        self._login_ts: Optional[datetime.datetime] = None
+        self._login_ts: Optional[datetime] = None
 
     @property
     def username(self) -> str:
@@ -127,20 +127,28 @@ class Client:
         if not self._login_ts:
             return False
 
-        delta = datetime.datetime.now() - self._login_ts
+        delta = datetime.now() - self._login_ts
         return delta < self.user_session_timeout
 
     @property
-    def user_session_timeout(self) -> datetime.timedelta:
+    def user_session_timeout(self) -> timedelta:
         return self._user_session_timeout
 
     @property
     def auto_renew_user_session(self) -> bool:
         return self._auto_renew_user_session
 
-    async def raw_request(
-        self, method: str, url: str, **kwargs
-    ) -> aiohttp.ClientResponse:
+    async def request_json(self, method: str, url: str, **kwargs) -> Dict[Any, Any]:
+        buff = await self.request_bytes(method, url, **kwargs)
+        data = json.loads(buff.decode("utf-8"))
+        return data
+
+    async def request_bytes(self, method: str, url: str, **kwargs) -> bytes:
+        resp = await self._request(method, url, **kwargs)
+        buff = await resp.content.read()
+        return buff
+
+    async def _request(self, method: str, url: str, **kwargs) -> aiohttp.ClientResponse:
         headers = kwargs.get("headers", {})
         headers.update(self._HEADERS)
         kwargs["headers"] = headers
@@ -150,14 +158,6 @@ class Client:
             raise RequestFailedError(resp)
 
         return resp
-
-    async def request(self, method: str, url: str, **kwargs) -> Dict[str, Any]:
-        resp = await self.raw_request(method, url, **kwargs)
-
-        if resp.status != 200:
-            raise RequestFailedError(resp)
-
-        return await resp.json()
 
     async def login(self) -> None:
         """
@@ -183,14 +183,14 @@ class Client:
             "n",
         ]
 
-        data = await self.request("POST", _LOGIN_ENDPOINT, json=payload)
+        data = await self.request_json("POST", _LOGIN_ENDPOINT, json=payload)
         if not isinstance(data, dict):
             raise InvalidData(data)
 
         if data.get("success", "false") != "true":
             raise CommandError(data)
 
-        self._login_ts = datetime.datetime.now()
+        self._login_ts = datetime.now()
 
         if self._contract:
             await self.select_contract(self._contract)
@@ -207,13 +207,9 @@ class Client:
             'icp': 'trueConectado'
         }
         """
-        data = await self.request("POST", _ICP_STATUS_ENDPOINT)
-        try:
-            ret = data.get("icp", "") == "trueConectado"
-        except KeyError:
-            raise InvalidData(data)
+        data = await self.request_json("POST", _ICP_STATUS_ENDPOINT)
+        ret = data.get("icp", "") == "trueConectado"
 
-        self._logger.info(f"{self}: ICP is {'ready' if ret else 'NOT ready'}")
         return ret
 
     @auth_required
@@ -278,7 +274,7 @@ class Client:
             "cau": None,
         }
         """
-        data = await self.request("GET", _CONTRACT_DETAILS_ENDPOINT)
+        data = await self.request_json("GET", _CONTRACT_DETAILS_ENDPOINT)
         if not data.get("codContrato", False):
             raise InvalidData(data)
 
@@ -308,7 +304,7 @@ class Client:
             ]
         }
         """
-        data = await self.request("GET", _CONTRACTS_ENDPOINT)
+        data = await self.request_json("GET", _CONTRACTS_ENDPOINT)
         if not data.get("success", False):
             raise CommandError(data)
 
@@ -319,7 +315,7 @@ class Client:
 
     @auth_required
     async def select_contract(self, id: str) -> None:
-        resp = await self.request("GET", _CONTRACT_SELECTION_ENDPOINT + id)
+        resp = await self.request_json("GET", _CONTRACT_SELECTION_ENDPOINT + id)
         if not resp.get("success", False):
             raise InvalidContractError(id)
 
@@ -340,7 +336,7 @@ class Client:
 
         self._logger.debug("Requesting data to the ICP, may take up to a minute.")
 
-        data = await self.request("GET", _MEASURE_ENDPOINT)
+        data = await self.request_json("GET", _MEASURE_ENDPOINT)
         self._logger.debug(f"Got reply, raw data: {data!r}")
 
         try:
@@ -355,75 +351,61 @@ class Client:
         self._logger.info(f"{self}: ICP measure reading successful")
         return measure
 
-    @auth_required
-    async def get_historical_data(
-        self, req_type: HistoricalRequest, start: datetime.date, end: datetime.date
+    async def get_historical_consumption(
+        self, start: datetime, end: datetime
     ) -> Dict[str, Any]:
-        def _historical_parser(data: Dict) -> Dict[str, Any]:
-            base = datetime.datetime(start.year, start.month, start.day)
-            historical = data["y"]["data"][0]
-            historical = [x for x in historical if x is not None]
-            historical = [
-                (base + datetime.timedelta(hours=idx), x.get("valor", None))
-                for (idx, x) in enumerate(historical)
-            ]
-            historical = [
-                (dt, float(x) if x is not None else x) for (dt, x) in historical
-            ]
+        return await self._get_historical_generic_data(
+            _CONSUMPTION_PERIOD_ENDPOINT, start, end
+        )
 
-            return {
-                "accumulated": float(data["acumulado"]),
-                "accumulated-co2": float(data["acumuladoCO2"]),
-                "historical": historical,
-            }
+    async def get_historical_generation(
+        self, start: datetime, end: datetime
+    ) -> Dict[str, Any]:
+        return await self._get_historical_generic_data(
+            _GENERATION_PERIOD_ENDPOINT, start, end
+        )
 
-        def _consumption_parser(data: Dict) -> Dict[str, Any]:
-            return _historical_parser(data)
-
-        def _generation_parser(data) -> Dict[str, Any]:
-            return _historical_parser(data)
-
-        backends = {
-            HistoricalRequest.CONSUMPTION: (
-                _CONSUMPTION_PERIOD_ENDPOINT,
-                _consumption_parser,
-            ),
-            HistoricalRequest.GENERATION: (
-                _GENERATION_PERIOD_ENDPOINT,
-                _generation_parser,
-            ),
-        }
-
-        try:
-            endpoint_url, parser = backends[req_type]
-        except KeyError as e:
-            raise ValueError(req_type, "Unknow historical request") from e
-
+    @auth_required
+    async def _get_historical_generic_data(
+        self, url_template: str, start: datetime, end: datetime
+    ) -> Dict[Any, Any]:
         start = min([start, end])
         end = max([start, end])
 
-        url = endpoint_url.format(
-            start=start.strftime("%d-%m-%Y"), end=end.strftime("%d-%m-%Y")
+        url = url_template.format(start=start, end=end)
+
+        data = await self.request_json("GET", url)
+
+        base = datetime(start.year, start.month, start.day)
+        historical = data["y"]["data"][0]
+        historical = [x for x in historical if x is not None]
+        historical = [
+            (base + timedelta(hours=idx), x.get("valor", None))
+            for (idx, x) in enumerate(historical)
+        ]
+        historical = [(dt, float(x) if x is not None else x) for (dt, x) in historical]
+
+        return {
+            "accumulated": float(data["acumulado"]),
+            "accumulated-co2": float(data["acumuladoCO2"]),
+            "historical": historical,
+        }
+
+    @auth_required
+    async def get_historical_power_demand(self):
+        url = _POWER_DEMAND_LIMITS_ENDPOINT
+
+        data = await self.request_json("GET", url)
+        assert data.get("resultado") == "correcto"
+
+        url = _POWER_DEMAND_PERIOD_ENDPOINT.format(
+            fecMin=data["fecMin"], fecMax=data["fecMax"]
         )
         resp = await self.raw_request("GET", url)
-        buff = await resp.content.read()
+        data = json.loads((await resp.content.read()).decode("utf-8"))
+        assert data.get("resultado") == "correcto"
 
-        try:
-            buff = buff.decode(resp.charset)
-            data = json.loads(buff)
-
-            ret = parser(data)
-
-        except (TypeError, json.JSONDecodeError) as e:
-            raise InvalidData(buff) from e
-
-        except NotImplementedError as e:
-            raise NotImplementedError(
-                f"Request type not implemented: {req_type}. server data: {buff!r}"
-            ) from e
-
-        self._logger.info(f"{self}: {req_type} reading successful")
-        return ret
+        return data["potMaxMens"]
 
     def __repr__(self):
         return f"<ideenergy.Client username={self.username}, contract={self._contract}>"

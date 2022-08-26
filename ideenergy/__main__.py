@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2021-2022 Luis López <luis@cuarentaydos.com>
@@ -18,7 +17,8 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
 # USA.
 
+import asyncio
 from .cli import main
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
