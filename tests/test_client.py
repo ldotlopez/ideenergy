@@ -71,6 +71,21 @@ class TestClient(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(ret["accumulated"], 97871.0)
             self.assertEqual(ret["accumulated-co2"], 23586.91)
 
+    # @patch("ideenergy.Client.is_logged", return_value=True)
+    # async def test_historical_power_demand(self, _):
+    #     with patch(
+    #         "ideenergy.Client.request_bytes",
+    #         new_class=AsyncMock,
+    #         side_effect=[
+    #             read_fixture("historical-power-demand-limits"),
+    #             read_fixture("historical-power-demand"),
+    #         ],
+    #     ):
+    #         ret = await self.client.get_historical_power_demand()
+
+    #         self.assertEqual(ret["accumulated"], 97871.0)
+    #         self.assertEqual(ret["accumulated-co2"], 23586.91)
+
 
 if __name__ == "__main__":
     unittest.main()

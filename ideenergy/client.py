@@ -22,10 +22,11 @@ import dataclasses
 import functools
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
+from . import parsers
 
 _BASE_URL = "https://www.i-de.es/consumidores/rest"
 _CONSUMPTION_PERIOD_ENDPOINT = (
@@ -369,41 +370,33 @@ class Client:
     ) -> Dict[Any, Any]:
         start = min([start, end])
         end = max([start, end])
-
         url = url_template.format(start=start, end=end)
 
         data = await self.request_json("GET", url, encoding="iso-8859-1")
 
-        base = datetime(start.year, start.month, start.day)
-        historical = data["y"]["data"][0]
-        historical = [x for x in historical if x is not None]
-        historical = [
-            (base + timedelta(hours=idx), x.get("valor", None))
-            for (idx, x) in enumerate(historical)
-        ]
-        historical = [(dt, float(x) if x is not None else x) for (dt, x) in historical]
+        base_date = datetime(start.year, start.month, start.day)
+        ret = parsers.parser_generic_historical_data(data, base_date)
 
-        return {
-            "accumulated": float(data["acumulado"]),
-            "accumulated-co2": float(data["acumuladoCO2"]),
-            "historical": historical,
-        }
+        return ret
 
     @auth_required
-    async def get_historical_power_demand(self):
+    async def get_historical_power_demand_limits(self):
         url = _POWER_DEMAND_LIMITS_ENDPOINT
 
         data = await self.request_json("GET", url)
         assert data.get("resultado") == "correcto"
 
-        url = _POWER_DEMAND_PERIOD_ENDPOINT.format(
-            fecMin=data["fecMin"], fecMax=data["fecMax"]
-        )
+        return data
+
+    @auth_required
+    async def get_historical_power_demand(self):
+        limits = await self.get_historical_power_demand_limits()
+        url = _POWER_DEMAND_PERIOD_ENDPOINT.format(**limits)
 
         data = await self.request_json("GET", url)
-        assert data.get("resultado") == "correcto"
 
-        return data["potMaxMens"]
+        ret = parsers.parse_historical_power_demand_data(data)
+        return ret
 
     def __repr__(self):
         return f"<ideenergy.Client username={self.username}, contract={self._contract}>"
