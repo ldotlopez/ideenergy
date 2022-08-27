@@ -137,9 +137,11 @@ class Client:
     def auto_renew_user_session(self) -> bool:
         return self._auto_renew_user_session
 
-    async def request_json(self, method: str, url: str, **kwargs) -> Dict[Any, Any]:
+    async def request_json(
+        self, method: str, url: str, encoding: str = "utf-8", **kwargs
+    ) -> Dict[Any, Any]:
         buff = await self.request_bytes(method, url, **kwargs)
-        data = json.loads(buff.decode("utf-8"))
+        data = json.loads(buff.decode(encoding))
         return data
 
     async def request_bytes(self, method: str, url: str, **kwargs) -> bytes:
@@ -370,7 +372,7 @@ class Client:
 
         url = url_template.format(start=start, end=end)
 
-        data = await self.request_json("GET", url)
+        data = await self.request_json("GET", url, encoding="iso-8859-1")
 
         base = datetime(start.year, start.month, start.day)
         historical = data["y"]["data"][0]
