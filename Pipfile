@@ -10,6 +10,8 @@ attrs = "==21.2.0"
 [dev-packages]
 ipdb = "*"
 ipython = "*"
+build = "*"
+twine = "*"
 
 [requires]
 python_version = "3"

@@ -22,7 +22,7 @@ import dataclasses
 import functools
 import json
 import logging
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
