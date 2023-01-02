@@ -92,14 +92,14 @@ async def main():
     )
 
     try:
-        data = await _main()
+        if data := await _main():
+            print(pprint.pformat(data))
 
     except RequestFailedError as e:
         print(f"Request failed: {e}", file=sys.stderr)
         await session.close()
-        return
+        sys.ext(1)
 
-    print(pprint.pformat(data))
     await session.close()
 
 

@@ -4,8 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-aiohttp = "*"
-attrs = "==21.2.0"
+aiohttp = "<4.0,>=3.8"
 
 [dev-packages]
 ipdb = "*"
