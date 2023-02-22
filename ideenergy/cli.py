@@ -98,7 +98,7 @@ async def main():
     except RequestFailedError as e:
         print(f"Request failed: {e}", file=sys.stderr)
         await session.close()
-        sys.ext(1)
+        sys.exit(1)
 
     await session.close()
 
