@@ -20,10 +20,10 @@
 
 
 import asyncio
-from ideenergy import client
-from ideenergy import get_credentials, get_session
-
+import json
 from datetime import datetime, timedelta
+
+from ideenergy import client, get_credentials, get_session
 
 
 async def main():
@@ -35,6 +35,7 @@ async def main():
     end = datetime.now().replace(hour=0, minute=0, second=0)
     start = end - timedelta(days=7)
 
+    # Dump measure
     async def _dump_measure():
         with open("tests/fixtures/measure.bin", mode="wb") as fh:
             url = client._MEASURE_ENDPOINT
@@ -42,22 +43,29 @@ async def main():
 
     # Dump historical consumption
     async def _dump_historical_consumption():
+        url = client._CONSUMPTION_PERIOD_ENDPOINT.format(start=start, end=end)
+        buff = await api.request_bytes("GET", url)
         with open("tests/fixtures/historical-consumption.bin", mode="wb") as fh:
-            url = client._CONSUMPTION_PERIOD_ENDPOINT.format(start=start, end=end)
-            fh.write(await api.request_bytes("GET", url))
+            fh.write(buff)
 
     # Dump historical generation
     async def _dump_historical_generation():
+        url = client._GENERATION_PERIOD_ENDPOINT.format(start=start, end=end)
+        buff = await api.request_bytes("GET", url)
         with open("tests/fixtures/historical-generation.bin", mode="wb") as fh:
-            url = client._GENERATION_PERIOD_ENDPOINT.format(start=start, end=end)
-            fh.write(await api.request_bytes("GET", url))
+            fh.write(buff)
 
     # Dump power demand
     async def _dump_historical_power_demand():
+        buff = await api.request_bytes("GET", client._POWER_DEMAND_LIMITS_ENDPOINT)
+        with open("tests/fixtures/historical-power-demand-limits.bin", mode="wb") as fh:
+            fh.write(buff)
+
+        data = json.loads(buff.decode("utf-8"))
+        url = client._POWER_DEMAND_PERIOD_ENDPOINT.format(**data)
+
+        buff = await api.request_bytes("GET", url)
         with open("tests/fixtures/historical-power-demand.bin", mode="wb") as fh:
-            data = await api.request_json("GET", client._POWER_DEMAND_LIMITS_ENDPOINT)
-            url = client._POWER_DEMAND_PERIOD_ENDPOINT.format(**data)
-            buff = await api.request_bytes("GET", url)
             fh.write(buff)
 
     for fn in [
@@ -77,10 +85,6 @@ async def main():
         print(": OK")
 
     await sess.close()
-
-    # pp(await api.get_historical_consumption(start, end))
-    # pp(await api.get_historical_generation(start, end))
-    # pp(await api.get_historical_power_demand())
 
 
 asyncio.run(main())

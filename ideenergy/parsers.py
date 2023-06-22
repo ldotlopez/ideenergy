@@ -18,13 +18,13 @@
 # USA.
 
 
-import itertools
 import datetime
-from typing import Dict
+import itertools
+from typing import Dict, List, Optional
 
 
 def parser_generic_historical_data(data, base_dt: datetime.datetime) -> Dict:
-    def _normalize_historical_item(idx: int, item: Dict | None) -> Dict | None:
+    def _normalize_historical_item(idx: int, item: Optional[Dict]) -> Optional[Dict]:
         if item is None:
             return None
 
@@ -53,17 +53,15 @@ def parser_generic_historical_data(data, base_dt: datetime.datetime) -> Dict:
     }
 
 
-def parse_historical_power_demand_data(data) -> Dict:
-    def _normalize_power_spike_item(item: Dict):
+def parse_historical_power_demand_data(data) -> List[Dict]:
+    def _normalize_item(item: Dict):
         return {
             "dt": datetime.datetime.strptime(item["name"], "%d/%m/%Y %H:%M"),
             "value": item["y"],
         }
 
-    assert data.get("resultado") == "correcto"
-
     potMaxMens = data["potMaxMens"]
     potMaxMens = list(itertools.chain.from_iterable([x for x in potMaxMens]))
-    potMaxMens = [_normalize_power_spike_item(x) for x in potMaxMens]
+    potMaxMens = [_normalize_item(x) for x in potMaxMens]
 
     return potMaxMens

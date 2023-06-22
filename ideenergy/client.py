@@ -29,11 +29,10 @@ import aiohttp
 from . import parsers
 
 _BASE_URL = "https://www.i-de.es/consumidores/rest"
-_CONSUMPTION_PERIOD_ENDPOINT = (
-    f"{_BASE_URL}/consumoNew/obtenerDatosConsumoPeriodo/"
-    "fechaInicio/{start:%d-%m-%Y}00:00:00/"
-    "fechaFinal/{end:%d-%m-%Y}00:00:00/"
-)
+
+#
+# URLs not confirmed since begining of the times
+#
 _CONTRACTS_ENDPOINT = f"{_BASE_URL}/cto/listaCtos/"
 _CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/detalleCto/detalle/"
 _CONTRACT_SELECTION_ENDPOINT = f"{_BASE_URL}/cto/seleccion/"
@@ -45,6 +44,16 @@ _GENERATION_PERIOD_ENDPOINT = (
 _ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
 _LOGIN_ENDPOINT = f"{_BASE_URL}/loginNew/login"
 _MEASURE_ENDPOINT = f"{_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
+
+#
+# URLs reviewed on 2023-06-22
+#
+_CONSUMPTION_PERIOD_ENDPOINT = (
+    f"{_BASE_URL}/consumoNew/obtenerDatosConsumoDH/"
+    "{start:%d-%m-%Y}/"
+    "{end:%d-%m-%Y}/"
+    "horas/USU/"
+)
 
 _POWER_DEMAND_LIMITS_ENDPOINT = f"{_BASE_URL}/consumoNew/obtenerLimitesFechasPotencia/"
 _POWER_DEMAND_PERIOD_ENDPOINT = (
