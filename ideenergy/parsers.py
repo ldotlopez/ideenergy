@@ -18,17 +18,19 @@
 # USA.
 
 
-import datetime
 import itertools
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
+from .types import ConsumptionForPeriod, HistoricalConsumption
 
-def parser_generic_historical_data(data, base_dt: datetime.datetime) -> Dict:
+
+def parser_generic_historical_data(data, base_dt: datetime) -> Dict:
     def _normalize_historical_item(idx: int, item: Optional[Dict]) -> Optional[Dict]:
         if item is None:
             return None
 
-        start = base_dt + datetime.timedelta(hours=idx)
+        start = base_dt + timedelta(hours=idx)
         try:
             value = float(item["valor"])
         except (KeyError, ValueError, TypeError):
@@ -36,7 +38,7 @@ def parser_generic_historical_data(data, base_dt: datetime.datetime) -> Dict:
 
         return {
             "start": start,
-            "end": start + datetime.timedelta(hours=1),
+            "end": start + timedelta(hours=1),
             "value": value,
         }
 
@@ -53,10 +55,40 @@ def parser_generic_historical_data(data, base_dt: datetime.datetime) -> Dict:
     }
 
 
+def parse_historical_consumption(data) -> HistoricalConsumption:
+    def list_to_dict(values, keys):
+        return {keys[idx]: values[idx] for idx in range(len(values))}
+
+    start = datetime.strptime(data[0]["fechaDesde"], "%d-%m-%Y").replace(
+        hour=0, minute=0, second=0
+    )
+
+    period_names = data[0]["periodos"]
+
+    ret = HistoricalConsumption(
+        total=data[0]["total"],
+        desglosed=list_to_dict(data[0]["totalesPeriodosTarifarios"], period_names),
+    )
+
+    for idx, value in enumerate(data[0]["valores"]):
+        ret.consumptions.append(
+            ConsumptionForPeriod(
+                start=start + timedelta(hours=idx),
+                end=start + timedelta(hours=idx + 1),
+                value=value,
+                desglosed=list_to_dict(
+                    data[0]["valoresPeriodosTarifarios"][idx], period_names
+                ),
+            )
+        )
+
+    return ret
+
+
 def parse_historical_power_demand_data(data) -> List[Dict]:
     def _normalize_item(item: Dict):
         return {
-            "dt": datetime.datetime.strptime(item["name"], "%d/%m/%Y %H:%M"),
+            "dt": datetime.strptime(item["name"], "%d/%m/%Y %H:%M"),
             "value": item["y"],
         }
 

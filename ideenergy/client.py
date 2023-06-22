@@ -26,7 +26,9 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
+
 from . import parsers
+from .types import HistoricalConsumption
 
 _BASE_URL = "https://www.i-de.es/consumidores/rest"
 
@@ -361,10 +363,8 @@ class Client:
 
     async def get_historical_consumption(
         self, start: datetime, end: datetime
-    ) -> Dict[str, Any]:
-        return await self._get_historical_generic_data(
-            _CONSUMPTION_PERIOD_ENDPOINT, start, end
-        )
+    ) -> HistoricalConsumption:
+        return await self._get_historical_consumption(start, end)
 
     async def get_historical_generation(
         self, start: datetime, end: datetime
@@ -386,6 +386,22 @@ class Client:
         base_date = datetime(start.year, start.month, start.day)
         ret = parsers.parser_generic_historical_data(data, base_date)
 
+        return ret
+
+    @auth_required
+    async def _get_historical_consumption(
+        self, start: datetime, end: datetime
+    ) -> HistoricalConsumption:
+        start = min([start, end])
+        end = max([start, end])
+        url = _CONSUMPTION_PERIOD_ENDPOINT.format(start=start, end=end)
+
+        data = await self.request_json("GET", url, encoding="iso-8859-1")
+
+        ret = parsers.parse_historical_consumption(data)
+        ret.consumptions = [
+            x for x in ret.consumptions if x.start >= start and x.end < end
+        ]
         return ret
 
     @auth_required
