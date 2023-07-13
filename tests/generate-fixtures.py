@@ -23,7 +23,7 @@ import asyncio
 import json
 from datetime import datetime, timedelta
 
-from ideenergy import client, get_credentials, get_session
+from globalomnium import client, get_credentials, get_session
 
 
 async def main():
@@ -48,30 +48,30 @@ async def main():
         with open("tests/fixtures/historical-consumption.bin", mode="wb") as fh:
             fh.write(buff)
 
-    # Dump historical generation
-    async def _dump_historical_generation():
-        url = client._GENERATION_PERIOD_ENDPOINT.format(start=start, end=end)
-        buff = await api.request_bytes("GET", url)
-        with open("tests/fixtures/historical-generation.bin", mode="wb") as fh:
-            fh.write(buff)
-
-    # Dump power demand
-    async def _dump_historical_power_demand():
-        buff = await api.request_bytes("GET", client._POWER_DEMAND_LIMITS_ENDPOINT)
-        with open("tests/fixtures/historical-power-demand-limits.bin", mode="wb") as fh:
-            fh.write(buff)
-
-        data = json.loads(buff.decode("utf-8"))
-        url = client._POWER_DEMAND_PERIOD_ENDPOINT.format(**data)
-
-        buff = await api.request_bytes("GET", url)
-        with open("tests/fixtures/historical-power-demand.bin", mode="wb") as fh:
-            fh.write(buff)
+#     # Dump historical generation
+#     async def _dump_historical_generation():
+#         url = client._GENERATION_PERIOD_ENDPOINT.format(start=start, end=end)
+#         buff = await api.request_bytes("GET", url)
+#         with open("tests/fixtures/historical-generation.bin", mode="wb") as fh:
+#             fh.write(buff)
+# 
+#     # Dump power demand
+#     async def _dump_historical_power_demand():
+#         buff = await api.request_bytes("GET", client._POWER_DEMAND_LIMITS_ENDPOINT)
+#         with open("tests/fixtures/historical-power-demand-limits.bin", mode="wb") as fh:
+#             fh.write(buff)
+# 
+#         data = json.loads(buff.decode("utf-8"))
+#         url = client._POWER_DEMAND_PERIOD_ENDPOINT.format(**data)
+# 
+#         buff = await api.request_bytes("GET", url)
+#         with open("tests/fixtures/historical-power-demand.bin", mode="wb") as fh:
+#             fh.write(buff)
 
     for fn in [
         _dump_historical_consumption,
-        _dump_historical_generation,
-        _dump_historical_power_demand,
+#         _dump_historical_generation,
+#         _dump_historical_power_demand,
         _dump_measure,
     ]:
         print(f"Running {fn.__name__}", end="")
