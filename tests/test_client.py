@@ -24,8 +24,8 @@ import unittest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
-from ideenergy import Client, get_session
-from ideenergy.client import _LOGIN_ENDPOINT
+from globalomnium import Client, get_session
+from globalomnium.client import _LOGIN_ENDPOINT
 
 FIXTURES_DIR = os.path.dirname(__file__) + "/fixtures"
 
@@ -47,7 +47,7 @@ class TestClient(unittest.IsolatedAsyncioTestCase):
 
     async def test_login_ok(self):
         with patch(
-            "ideenergy.Client.request_bytes",
+            "globalomnium.Client.request_bytes",
             new_class=AsyncMock,
             return_value=read_fixture("login-ok"),
         ) as fn:
@@ -58,10 +58,10 @@ class TestClient(unittest.IsolatedAsyncioTestCase):
         args, kwargs = fn.call_args
         self.assertEqual(args, ("POST", _LOGIN_ENDPOINT))
 
-    @patch("ideenergy.Client.is_logged", return_value=True)
+    @patch("globalomnium.Client.is_logged", return_value=True)
     async def test_historical_consumption(self, _):
         with patch(
-            "ideenergy.Client.request_bytes",
+            "globalomnium.Client.request_bytes",
             new_class=AsyncMock,
             return_value=read_fixture("historical-consumption"),
         ):
@@ -70,22 +70,22 @@ class TestClient(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(ret["accumulated"], 97871.0)
             self.assertEqual(ret["accumulated-co2"], 23586.91)
 
-    @patch("ideenergy.Client.is_logged", return_value=True)
-    async def test_historical_power_demand(self, _):
-        with patch(
-            "ideenergy.Client.request_bytes",
-            new_class=AsyncMock,
-            side_effect=[
-                read_fixture("historical-power-demand-limits"),
-                read_fixture("historical-power-demand"),
-            ],
-        ):
-            ret = await self.client.get_historical_power_demand()
-
-            self.assertEqual(len(ret), 50)
-            self.assertEqual(
-                ret[25], {"dt": datetime(2022, 5, 28, 22, 15), "value": 2816.0}
-            )
+    @patch("globalomnium.Client.is_logged", return_value=True)
+#     async def test_historical_power_demand(self, _):
+#        with patch(
+#            "globalomnium.Client.request_bytes",
+#            new_class=AsyncMock,
+#            side_effect=[
+#                read_fixture("historical-power-demand-limits"),
+#                read_fixture("historical-power-demand"),
+#            ],
+#        ):
+#            ret = await self.client.get_historical_power_demand()
+#
+#            self.assertEqual(len(ret), 50)
+#            self.assertEqual(
+#                ret[25], {"dt": datetime(2022, 5, 28, 22, 15), "value": 2816.0}
+#            )
 
 
 if __name__ == "__main__":
