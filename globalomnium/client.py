@@ -112,7 +112,7 @@ class Client:
         self,
         session: aiohttp.ClientSession,
         user: str,
-        pass: str,
+        passw: str,
         contract: Optional[str] = None,
         logger: Optional[logging.Logger] = None,
         user_session_timeout: Union[timedelta, int] = 300,
@@ -123,7 +123,7 @@ class Client:
 
         self._sess = session
         self._user = user
-        self._pass = pass
+        self._passw = "pass"
         self._contract = contract
         self._logger = logger or logging.getLogger("globalomnium")
         self._user_session_timeout = user_session_timeout
@@ -136,8 +136,8 @@ class Client:
         return self._user
 
     @property
-    def pass(self) -> str:
-        return self._pass
+    def passw(self) -> str:
+        return self._passw
 
     @property
     def is_logged(self) -> bool:
@@ -190,7 +190,7 @@ class Client:
         """
         payload = [
             self.user,
-            self.pass,
+            self.passw,
             "remember=true",
             "suministro=",
             # "",
