@@ -31,8 +31,8 @@ from . import Client, RequestFailedError, get_credentials, get_session
 
 def build_arg_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-u", "--username", required=False)
-    parser.add_argument("-p", "--password", required=False)
+    parser.add_argument("-u", "--user", required=False)
+    parser.add_argument("-p", "--passw", required=False)
     parser.add_argument("--credentials", required=False)
     parser.add_argument("--retries", type=int, default=1)
     parser.add_argument("--contract")
@@ -40,8 +40,8 @@ def build_arg_parser():
     parser.add_argument("--list-contracts", action="store_true")
     parser.add_argument("--get-measure", action="store_true")
     parser.add_argument("--get-historical-consumption", action="store_true")
-    parser.add_argument("--get-historical-generation", action="store_true")
-    parser.add_argument("--get-historical-power-demand", action="store_true")
+    # parser.add_argument("--get-historical-generation", action="store_true")
+    # parser.add_argument("--get-historical-power-demand", action="store_true")
 
     return parser
 
@@ -50,7 +50,7 @@ async def main():
     async def _main():
         if args.list_contracts:
             contracts = await client.get_contracts()
-            contracts = {x["codContrato"]: x for x in contracts}
+            contracts = {x["referencia"]: x for x in contracts}
             return contracts
 
         if args.contract:
@@ -65,30 +65,30 @@ async def main():
         if args.get_historical_consumption:
             return await client.get_historical_consumption(start, end)
 
-        if args.get_historical_generation:
-            return await client.get_historical_generation(start, end)
+        # if args.get_historical_generation:
+        #     return await client.get_historical_generation(start, end)
 
-        if args.get_historical_power_demand:
-            return await client.get_historical_power_demand()
+        # if args.get_historical_power_demand:
+        #     return await client.get_historical_power_demand()
 
     logging.basicConfig(
         format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    logger = logging.getLogger("ideenergy")
+    logger = logging.getLogger("globalomnium")
     logger.setLevel(logging.DEBUG)
 
     parser = build_arg_parser()
     args = parser.parse_args()
-    username, password = get_credentials(args)
+    user, passw = get_credentials(args)
 
-    if not username or not password:
+    if not user or not passw:
         print("Missing username or password", file=sys.stderr)
         sys.exit(1)
 
     session = await get_session()
     client = Client(
-        username=username, password=password, session=session, logger=logger
+        user=user, passw=passw, session=session, logger=logger
     )
 
     try:
