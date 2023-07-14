@@ -50,7 +50,7 @@ def parser_generic_historical_data(data, base_dt: datetime) -> Dict:
 
     return {
         "accumulated": float(data["acumulado"]),
-        "accumulated-co2": float(data["acumuladoCO2"]),
+        # "accumulated-co2": float(data["acumuladoCO2"]),
         "historical": historical,
     }
 
@@ -59,41 +59,42 @@ def parse_historical_consumption(data) -> HistoricalConsumption:
     def list_to_dict(values, keys):
         return {keys[idx]: values[idx] for idx in range(len(values))}
 
-    start = datetime.strptime(data[0]["fechaDesde"], "%d-%m-%Y").replace(
+    # CORREGIR, YA QUE EN GO EXISTE EL CAMPO FECHA DESDE PERO ESTA EN BLANCO, ESTA LA FEHA EN UN CAMPO STRING QUE HAY QUE DECODIFICAR
+    start = datetime.strptime(table[0]["FechaDesde"], "%d-%m-%Y").replace(
         hour=0, minute=0, second=0
     )
 
-    period_names = data[0]["periodos"]
+    period_names = table[0]["Periodo"]
 
     ret = HistoricalConsumption(
-        total=data[0]["total"],
-        desglosed=list_to_dict(data[0]["totalesPeriodosTarifarios"], period_names),
+        total=table[0]["Lectura"],
+        # desglosed=list_to_dict(data[0]["totalesPeriodosTarifarios"], period_names),
     )
 
-    for idx, value in enumerate(data[0]["valores"]):
+    for idx, value in enumerate(tabla[0]["Lectura"]):
         ret.consumptions.append(
             ConsumptionForPeriod(
                 start=start + timedelta(hours=idx),
                 end=start + timedelta(hours=idx + 1),
                 value=value,
-                desglosed=list_to_dict(
-                    data[0]["valoresPeriodosTarifarios"][idx], period_names
-                ),
+                # desglosed=list_to_dict(
+                #     data[0]["valoresPeriodosTarifarios"][idx], period_names
+                # ),
             )
         )
 
     return ret
 
 
-def parse_historical_power_demand_data(data) -> List[Dict]:
-    def _normalize_item(item: Dict):
-        return {
-            "dt": datetime.strptime(item["name"], "%d/%m/%Y %H:%M"),
-            "value": item["y"],
-        }
-
-    potMaxMens = data["potMaxMens"]
-    potMaxMens = list(itertools.chain.from_iterable([x for x in potMaxMens]))
-    potMaxMens = [_normalize_item(x) for x in potMaxMens]
-
-    return potMaxMens
+# def parse_historical_power_demand_data(data) -> List[Dict]:
+#     def _normalize_item(item: Dict):
+#         return {
+#             "dt": datetime.strptime(item["name"], "%d/%m/%Y %H:%M"),
+#             "value": item["y"],
+#         }
+#
+#     potMaxMens = data["potMaxMens"]
+#     potMaxMens = list(itertools.chain.from_iterable([x for x in potMaxMens]))
+#     potMaxMens = [_normalize_item(x) for x in potMaxMens]
+#
+#    return potMaxMens
