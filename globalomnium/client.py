@@ -30,38 +30,43 @@ import aiohttp
 from . import parsers
 from .types import HistoricalConsumption
 
-_BASE_URL = "https://www.i-de.es/consumidores/rest"
+_BASE_URL = "https://www.aguasdevalencia.es/VirtualOffice"
 
 #
 # URLs not confirmed since begining of the times
 #
-_CONTRACTS_ENDPOINT = f"{_BASE_URL}/cto/listaCtos/"
-_CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/detalleCto/detalle/"
-_CONTRACT_SELECTION_ENDPOINT = f"{_BASE_URL}/cto/seleccion/"
-_GENERATION_PERIOD_ENDPOINT = (
-    f"{_BASE_URL}/consumoNew/obtenerDatosGeneracionPeriodo/"
-    "fechaInicio/{start:%d-%m-%Y}00:00:00/"
-    "fechaFinal/{end:%d-%m-%Y}00:00:00/"
+_CONTRACTS_ENDPOINT = f"{_BASE_URL}/Secure/action_getSuministros/" 
+_CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/Secure/action_getSuministro/"
+_CONTRACT_SELECTION_ENDPOINT = f"{_BASE_URL}/Secure/action_setSuministroActivo/"
+# _GENERATION_PERIOD_ENDPOINT = (
+#     f"{_BASE_URL}/consumoNew/obtenerDatosGeneracionPeriodo/"
+#     "fechaInicio/{start:%d-%m-%Y}00:00:00/"
+#     "fechaFinal/{end:%d-%m-%Y}00:00:00/"
+# )
+# _ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
+_LOGIN_ENDPOINT = f"{_BASE_URL}/action_Login/"
+_MEASURE_ENDPOINT = (
+    f"{_BASE_URL}/action_getDatosLecturaHorariaEntreFechas/"
+    "{start:%d/%m/%Y}/"
+    "{end:%d/%m/%Y}/"
 )
-_ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
-_LOGIN_ENDPOINT = f"{_BASE_URL}/loginNew/login"
-_MEASURE_ENDPOINT = f"{_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
 
 #
 # URLs reviewed on 2023-06-22
 #
 _CONSUMPTION_PERIOD_ENDPOINT = (
-    f"{_BASE_URL}/consumoNew/obtenerDatosConsumoDH/"
-    "{start:%d-%m-%Y}/"
-    "{end:%d-%m-%Y}/"
-    "horas/USU/"
+    f"{_BASE_URL}/action_getHistorialLecturasWmtM/"
+    # "{start:%d-%m-%Y}/"
+    # "{end:%d-%m-%Y}/"
+    "{start:%d/%m/%Y}/"
+    "{end:%d/%m/%Y}/"
 )
 
-_POWER_DEMAND_LIMITS_ENDPOINT = f"{_BASE_URL}/consumoNew/obtenerLimitesFechasPotencia/"
-_POWER_DEMAND_PERIOD_ENDPOINT = (
-    f"{_BASE_URL}/consumoNew/obtenerPotenciasMaximasRangoV2/"
-    # fecMin and fecMax are provided by _POWER_DEMAND_LIMITS_ENDPOINT
-    "{fecMin}/{fecMax}"
+# _POWER_DEMAND_LIMITS_ENDPOINT = f"{_BASE_URL}/consumoNew/obtenerLimitesFechasPotencia/"
+# _POWER_DEMAND_PERIOD_ENDPOINT = (
+#     f"{_BASE_URL}/consumoNew/obtenerPotenciasMaximasRangoV2/"
+#     # fecMin and fecMax are provided by _POWER_DEMAND_LIMITS_ENDPOINT
+#     "{fecMin}/{fecMax}"
 )
 
 
@@ -91,22 +96,23 @@ class Measure:
 
 class Client:
     _HEADERS = {
-        "Content-Type": "application/json; charset=utf-8",
-        "esVersionNueva": "1",
-        "idioma": "es",
-        "movilAPP": "si",
-        "tipoAPP": "ios",
-        "User-Agent": (
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 11_4_1 like Mac OS X) "
-            "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15G77"
+        # "Content-Type": "application/json; charset=utf-8",
+        # "esVersionNueva": "1",
+        # "idioma": "es",
+        # "movilAPP": "si",
+        # "tipoAPP": "ios",
+        # "User-Agent": (
+        #     "Mozilla/5.0 (iPhone; CPU iPhone OS 11_4_1 like Mac OS X) "
+        #     "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15G77"
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
         ),
     }
 
     def __init__(
         self,
         session: aiohttp.ClientSession,
-        username: str,
-        password: str,
+        user: str,
+        pass: str,
         contract: Optional[str] = None,
         logger: Optional[logging.Logger] = None,
         user_session_timeout: Union[timedelta, int] = 300,
@@ -116,22 +122,22 @@ class Client:
             user_session_timeout = timedelta(seconds=user_session_timeout)
 
         self._sess = session
-        self._username = username
-        self._password = password
+        self._user = user
+        self._pass = pass
         self._contract = contract
-        self._logger = logger or logging.getLogger("ideenergy")
+        self._logger = logger or logging.getLogger("globalomnium")
         self._user_session_timeout = user_session_timeout
         self._auto_renew_user_session = auto_renew_user_session
 
         self._login_ts: Optional[datetime] = None
 
     @property
-    def username(self) -> str:
-        return self._username
+    def user(self) -> str:
+        return self._user
 
     @property
-    def password(self) -> str:
-        return self._password
+    def pass(self) -> str:
+        return self._pass
 
     @property
     def is_logged(self) -> bool:
@@ -183,17 +189,19 @@ class Client:
         }
         """
         payload = [
-            self.username,
-            self.password,
-            "",
-            "iOS 11.4.1",
-            "Movil",
-            "Aplicación móvil V. 15",
-            "0",
-            "0",
-            "0",
-            "",
-            "n",
+            self.user,
+            self.pass,
+            "remember=true",
+            "suministro=",
+            # "",
+            # "iOS 11.4.1",
+            # "Movil",
+            # "Aplicación móvil V. 15",
+            # "0",
+            # "0",
+            # "0",
+            # "",
+            # "n",
         ]
 
         data = await self.request_json("POST", _LOGIN_ENDPOINT, json=payload)
@@ -211,16 +219,16 @@ class Client:
         self._logger.info(f"{self}: successful authentication")
 
     @auth_required
-    async def is_icp_ready(self) -> bool:
-        """
-        {
-            'icp': 'trueConectado'
-        }
-        """
-        data = await self.request_json("POST", _ICP_STATUS_ENDPOINT)
-        ret = data.get("icp", "") == "trueConectado"
-
-        return ret
+    # async def is_icp_ready(self) -> bool:
+    #     """
+    #     {
+    #         'icp': 'trueConectado'
+    #     }
+    #     """
+    #     data = await self.request_json("POST", _ICP_STATUS_ENDPOINT)
+    #     ret = data.get("icp", "") == "trueConectado"
+    #
+    #     return ret
 
     @auth_required
     async def get_contract_details(self) -> Dict[str, Any]:
@@ -319,13 +327,14 @@ class Client:
             raise CommandError(data)
 
         try:
-            return data["contratos"]
+            # return data["contratos"]
+            return data["referencia"] # en realidad el código "variable" del contrato va metido en medio de la cadena ["datos"]
         except KeyError:
             raise InvalidData(data)
 
     @auth_required
     async def select_contract(self, id: str) -> None:
-        resp = await self.request_json("GET", _CONTRACT_SELECTION_ENDPOINT + id)
+        resp = await self.request_json("GET", _CONTRACT_SELECTION_ENDPOINT + id)  #para GO utiliza el Payload suministro=abcd124.....
         if not resp.get("success", False):
             raise InvalidContractError(id)
 
@@ -351,8 +360,8 @@ class Client:
 
         try:
             measure = Measure(
-                accumulate=int(data["valLecturaContador"]),
-                instant=float(data["valMagnitud"]),
+                accumulate=int(data["Lectura"]), #si no funciona, poner table antes de lectura
+                instant=float(data["Consumo"]), #si no funciona, poner table antes de consumo
             )
 
         except (KeyError, ValueError) as e:
@@ -366,12 +375,12 @@ class Client:
     ) -> HistoricalConsumption:
         return await self._get_historical_consumption(start, end)
 
-    async def get_historical_generation(
-        self, start: datetime, end: datetime
-    ) -> Dict[str, Any]:
-        return await self._get_historical_generic_data(
-            _GENERATION_PERIOD_ENDPOINT, start, end
-        )
+    # async def get_historical_generation(
+    #     self, start: datetime, end: datetime
+    # ) -> Dict[str, Any]:
+    #     return await self._get_historical_generic_data(
+    #         _GENERATION_PERIOD_ENDPOINT, start, end
+    #    )
 
     @auth_required
     async def _get_historical_generic_data(
@@ -405,26 +414,26 @@ class Client:
         return ret
 
     @auth_required
-    async def get_historical_power_demand_limits(self):
-        url = _POWER_DEMAND_LIMITS_ENDPOINT
-
-        data = await self.request_json("GET", url)
-        assert data.get("resultado") == "correcto"
-
-        return data
+    # async def get_historical_power_demand_limits(self):
+    #     url = _POWER_DEMAND_LIMITS_ENDPOINT
+    # 
+    #     data = await self.request_json("GET", url)
+    #     assert data.get("resultado") == "correcto"
+    # 
+    #     return data
 
     @auth_required
-    async def get_historical_power_demand(self):
-        limits = await self.get_historical_power_demand_limits()
-        url = _POWER_DEMAND_PERIOD_ENDPOINT.format(**limits)
-
-        data = await self.request_json("GET", url)
-
-        ret = parsers.parse_historical_power_demand_data(data)
-        return ret
+    # async def get_historical_power_demand(self):
+    #     limits = await self.get_historical_power_demand_limits()
+    #     url = _POWER_DEMAND_PERIOD_ENDPOINT.format(**limits)
+    # 
+    #     data = await self.request_json("GET", url)
+    # 
+    #     ret = parsers.parse_historical_power_demand_data(data)
+    #     return ret
 
     def __repr__(self):
-        return f"<ideenergy.Client username={self.username}, contract={self._contract}>"
+        return f"<globalomnium.Client username={self.username}, contract={self._contract}>"
 
 
 class ClientError(Exception):
