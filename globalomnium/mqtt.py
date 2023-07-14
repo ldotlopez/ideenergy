@@ -26,7 +26,7 @@ from . import cli, get_credentials
 try:
     from paho.mqtt import publish
 except ImportError as e:
-    raise SystemError("paho.mqtt is required to use ideenergy.mqtt") from e
+    raise SystemError("paho.mqtt is required to use globalomnium.mqtt") from e
 
 
 def main():
@@ -34,17 +34,17 @@ def main():
         format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    logger = logging.getLogger("ideenergy")
+    logger = logging.getLogger("globalomnium")
     logger.setLevel(logging.DEBUG)
 
     parser = cli.build_arg_parser()
     parser.add_argument("--host", required=True)
-    parser.add_argument("--topic", default="ideenergy")
+    parser.add_argument("--topic", default="globalomnium")
 
     args = parser.parse_args()
 
-    username, password = get_credentials(args)
-    measure = cli.get_measure(username, password)
+    user, passw = get_credentials(args)
+    measure = cli.get_measure(user, passw)
     if not measure:
         sys.exit(1)
 
