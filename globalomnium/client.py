@@ -67,7 +67,7 @@ _CONSUMPTION_PERIOD_ENDPOINT = (
 #     f"{_BASE_URL}/consumoNew/obtenerPotenciasMaximasRangoV2/"
 #     # fecMin and fecMax are provided by _POWER_DEMAND_LIMITS_ENDPOINT
 #     "{fecMin}/{fecMax}"
-)
+# )
 
 
 async def get_session() -> aiohttp.ClientSession:
