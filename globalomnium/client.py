@@ -104,8 +104,9 @@ class Client:
         # "User-Agent": (
         #     "Mozilla/5.0 (iPhone; CPU iPhone OS 11_4_1 like Mac OS X) "
         #     "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15G77"
+        # ),
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        ),
+        
     }
 
     def __init__(
