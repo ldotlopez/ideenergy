@@ -31,8 +31,8 @@ from . import Client, RequestFailedError, get_credentials, get_session
 
 def build_arg_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-u", "--user", required=False)
-    parser.add_argument("-p", "--passw", required=False)
+    parser.add_argument("-u", "--username", required=False)
+    parser.add_argument("-p", "--password", required=False)
     parser.add_argument("--credentials", required=False)
     parser.add_argument("--retries", type=int, default=1)
     parser.add_argument("--contract")
@@ -80,15 +80,15 @@ async def main():
 
     parser = build_arg_parser()
     args = parser.parse_args()
-    user, passw = get_credentials(args)
+    username, password = get_credentials(args)
 
-    if not user or not passw:
+    if not username or not password:
         print("Missing username or password", file=sys.stderr)
         sys.exit(1)
 
     session = await get_session()
     client = Client(
-        user=user, passw=passw, session=session, logger=logger
+        userame=username, password=password, session=session, logger=logger
     )
 
     try:
