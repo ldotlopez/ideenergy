@@ -33,20 +33,20 @@ from .client import (
 
 
 def get_credentials(parsedargs=None, credentials=None, environ_prefix="GLOBALOMNIUM"):
-    if parsedargs and parsedargs.user:
-        return parsedargs.user, parsedargs.passw
+    if parsedargs and parsedargs.username:
+        return parsedargs.username, parsedargs.password
 
     credentials = credentials or getattr(parsedargs, "credentials", None)
     if credentials:
         with open(credentials, mode="r", encoding="utf-8") as fh:
             d = json.loads(fh.read())
-        return d["user"], d["passw"]
+        return d["username"], d["password"]
 
     if environ_prefix:
         environ_prefix = environ_prefix.upper()
         return (
-            os.environ.get(f"{environ_prefix}_USER"),
-            os.environ.get(f"{environ_prefix}_PASSW"),
+            os.environ.get(f"{environ_prefix}_USERNAME"),
+            os.environ.get(f"{environ_prefix}_PASSWORD"),
         )
 
 
