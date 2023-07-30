@@ -35,7 +35,7 @@ _BASE_URL = "https://www.aguasdevalencia.es/VirtualOffice"
 #
 # URLs not confirmed since begining of the times
 #
-_CONTRACTS_ENDPOINT = f"{_BASE_URL}/Secure/action_getSuministros/" 
+_CONTRACTS_ENDPOINT = f"{_BASE_URL}/Secure/action_getSuministros/"
 _CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/Secure/action_getSuministro/"
 _CONTRACT_SELECTION_ENDPOINT = f"{_BASE_URL}/Secure/action_setSuministroActivo/"
 # _GENERATION_PERIOD_ENDPOINT = (
@@ -106,7 +106,6 @@ class Client:
         #     "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15G77"
         # ),
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        
     }
 
     def __init__(
@@ -189,21 +188,12 @@ class Client:
             'uCcr': ''
         }
         """
-        payload = [
-            "login":self.username,
-            "pass":self.password,
-            "remember":"true",
-            "suministro":"",
-            # "",
-            # "iOS 11.4.1",
-            # "Movil",
-            # "Aplicación móvil V. 15",
-            # "0",
-            # "0",
-            # "0",
-            # "",
-            # "n",
-        ]
+        payload = {
+            "login": self.username,
+            "pass": self.password,
+            "remember": "true",
+            "suministro": "",
+        }
 
         data = await self.request_json("POST", _LOGIN_ENDPOINT, json=payload)
         if not isinstance(data, dict):
@@ -329,13 +319,17 @@ class Client:
 
         try:
             # return data["contratos"]
-            return data["referencia"] # en realidad el código "variable" del contrato va metido en medio de la cadena ["datos"]
+            return data[
+                "referencia"
+            ]  # en realidad el código "variable" del contrato va metido en medio de la cadena ["datos"]
         except KeyError:
             raise InvalidData(data)
 
     @auth_required
     async def select_contract(self, id: str) -> None:
-        resp = await self.request_json("GET", _CONTRACT_SELECTION_ENDPOINT + id)  #para GO utiliza el Payload suministro=abcd124.....
+        resp = await self.request_json(
+            "GET", _CONTRACT_SELECTION_ENDPOINT + id
+        )  # para GO utiliza el Payload suministro=abcd124.....
         if not resp.get("success", False):
             raise InvalidContractError(id)
 
@@ -361,8 +355,12 @@ class Client:
 
         try:
             measure = Measure(
-                accumulate=int(data["Lectura"]), #si no funciona, poner table antes de lectura
-                instant=float(data["Consumo"]), #si no funciona, poner table antes de consumo
+                accumulate=int(
+                    data["Lectura"]
+                ),  # si no funciona, poner table antes de lectura
+                instant=float(
+                    data["Consumo"]
+                ),  # si no funciona, poner table antes de consumo
             )
 
         except (KeyError, ValueError) as e:
@@ -417,24 +415,26 @@ class Client:
     @auth_required
     # async def get_historical_power_demand_limits(self):
     #     url = _POWER_DEMAND_LIMITS_ENDPOINT
-    # 
+    #
     #     data = await self.request_json("GET", url)
     #     assert data.get("resultado") == "correcto"
-    # 
+    #
     #     return data
 
     @auth_required
     # async def get_historical_power_demand(self):
     #     limits = await self.get_historical_power_demand_limits()
     #     url = _POWER_DEMAND_PERIOD_ENDPOINT.format(**limits)
-    # 
+    #
     #     data = await self.request_json("GET", url)
-    # 
+    #
     #     ret = parsers.parse_historical_power_demand_data(data)
     #     return ret
 
     def __repr__(self):
-        return f"<globalomnium.Client username={self.username}, contract={self._contract}>"
+        return (
+            f"<globalomnium.Client username={self.username}, contract={self._contract}>"
+        )
 
 
 class ClientError(Exception):
