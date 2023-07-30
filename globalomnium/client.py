@@ -112,8 +112,8 @@ class Client:
     def __init__(
         self,
         session: aiohttp.ClientSession,
-        user: str,
-        passw: str,
+        username: str,
+        password: str,
         contract: Optional[str] = None,
         logger: Optional[logging.Logger] = None,
         user_session_timeout: Union[timedelta, int] = 300,
@@ -123,8 +123,8 @@ class Client:
             user_session_timeout = timedelta(seconds=user_session_timeout)
 
         self._sess = session
-        self._user = user
-        self._passw = "pass"
+        self._username = username
+        self._password = password
         self._contract = contract
         self._logger = logger or logging.getLogger("globalomnium")
         self._user_session_timeout = user_session_timeout
@@ -133,12 +133,12 @@ class Client:
         self._login_ts: Optional[datetime] = None
 
     @property
-    def user(self) -> str:
-        return self._user
+    def username(self) -> str:
+        return self._username
 
     @property
-    def passw(self) -> str:
-        return self._passw
+    def password(self) -> str:
+        return self._password
 
     @property
     def is_logged(self) -> bool:
@@ -190,10 +190,10 @@ class Client:
         }
         """
         payload = [
-            self.user,
-            self.passw,
-            "remember=true",
-            "suministro=",
+            "user":self.username,
+            "pass":self.password,
+            "remember":"true",
+            "suministro":"",
             # "",
             # "iOS 11.4.1",
             # "Movil",
