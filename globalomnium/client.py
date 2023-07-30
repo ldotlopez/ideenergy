@@ -190,7 +190,7 @@ class Client:
         }
         """
         payload = [
-            "user":self.username,
+            "login":self.username,
             "pass":self.password,
             "remember":"true",
             "suministro":"",
