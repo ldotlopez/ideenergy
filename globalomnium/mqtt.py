@@ -43,8 +43,8 @@ def main():
 
     args = parser.parse_args()
 
-    user, passw = get_credentials(args)
-    measure = cli.get_measure(user, passw)
+    username, password = get_credentials(args)
+    measure = cli.get_measure(username, password)
     if not measure:
         sys.exit(1)
 
