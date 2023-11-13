@@ -186,14 +186,13 @@ class Client:
             self.username,
             self.password,
             "",
-            "iOS 11.4.1",
-            "Movil",
-            "Aplicación móvil V. 15",
-            "0",
-            "0",
+            "Android 6.0",
+            "Móvil",
+            "Chrome 119.0.0.0",
             "0",
             "",
-            "n",
+            "s",
+            "",
         ]
 
         data = await self.request_json("POST", _LOGIN_ENDPOINT, json=payload)
