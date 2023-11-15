@@ -25,10 +25,10 @@ from .client import (
     Client,
     ClientError,
     CommandError,
-    get_session,
     InvalidContractError,
     InvalidData,
     RequestFailedError,
+    get_session,
 )
 
 

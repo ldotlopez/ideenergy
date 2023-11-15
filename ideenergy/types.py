@@ -1,8 +1,12 @@
 from dataclasses import dataclass, field
-
 from datetime import datetime
+from typing import Dict, List
 
-from typing import List, Dict
+
+@dataclass
+class Measure:
+    accumulate: int
+    instant: float
 
 
 @dataclass
@@ -19,6 +23,22 @@ class ConsumptionForPeriod(PeriodValue):
 
 @dataclass
 class HistoricalConsumption:
-    consumptions: List[ConsumptionForPeriod] = field(default_factory=list)
+    periods: List[ConsumptionForPeriod] = field(default_factory=list)
     total: float = 0
     desglosed: Dict[str, float] = field(default_factory=dict)
+
+
+@dataclass
+class HistoricalGeneration:
+    periods: List[PeriodValue] = field(default_factory=list)
+
+
+@dataclass
+class DemandAtInstant:
+    dt: datetime
+    value: float
+
+
+@dataclass
+class HistoricalPowerDemand:
+    demands: List[DemandAtInstant] = field(default_factory=list)

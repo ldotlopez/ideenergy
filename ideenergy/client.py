@@ -18,7 +18,6 @@
 # USA.
 
 
-import dataclasses
 import functools
 import json
 import logging
@@ -28,7 +27,8 @@ from typing import Any, Dict, List, Optional, Union
 import aiohttp
 
 from . import parsers
-from .types import HistoricalConsumption
+from .types import (HistoricalConsumption, HistoricalGeneration,
+                    HistoricalPowerDemand, Measure)
 
 _BASE_URL = "https://www.i-de.es/consumidores/rest"
 
@@ -80,15 +80,6 @@ def auth_required(fn):
     return _wrap
 
 
-@dataclasses.dataclass
-class Measure:
-    accumulate: int
-    instant: float
-
-    def asdict(self) -> Dict[str, Union[int, float]]:
-        return dataclasses.asdict(self)
-
-
 class Client:
     _HEADERS = {
         "Content-Type": "application/json; charset=utf-8",
@@ -125,6 +116,10 @@ class Client:
 
         self._login_ts: Optional[datetime] = None
 
+    #
+    # Some properties
+    #
+
     @property
     def username(self) -> str:
         return self._username
@@ -149,17 +144,9 @@ class Client:
     def auto_renew_user_session(self) -> bool:
         return self._auto_renew_user_session
 
-    async def request_json(
-        self, method: str, url: str, encoding: str = "utf-8", **kwargs
-    ) -> Dict[Any, Any]:
-        buff = await self.request_bytes(method, url, **kwargs)
-        data = json.loads(buff.decode(encoding))
-        return data
-
-    async def request_bytes(self, method: str, url: str, **kwargs) -> bytes:
-        resp = await self._request(method, url, **kwargs)
-        buff = await resp.content.read()
-        return buff
+    #
+    # Requests
+    #
 
     async def _request(self, method: str, url: str, **kwargs) -> aiohttp.ClientResponse:
         headers = kwargs.get("headers", {})
@@ -171,6 +158,22 @@ class Client:
             raise RequestFailedError(resp)
 
         return resp
+
+    async def request_bytes(self, method: str, url: str, **kwargs) -> bytes:
+        resp = await self._request(method, url, **kwargs)
+        buff = await resp.content.read()
+        return buff
+
+    async def request_json(
+        self, method: str, url: str, encoding: str = "utf-8", **kwargs
+    ) -> Dict[Any, Any]:
+        buff = await self.request_bytes(method, url, **kwargs)
+        data = json.loads(buff.decode(encoding))
+        return data
+
+    #
+    # Methods
+    #
 
     async def login(self) -> None:
         """
@@ -203,11 +206,11 @@ class Client:
             raise CommandError(data)
 
         self._login_ts = datetime.now()
+        self._logger.info(f"successful authentication as '{self.username}'")
 
         if self._contract:
             await self.select_contract(self._contract)
-
-        self._logger.info(f"{self}: successful authentication")
+            self._logger.info(f"contract '{self._contract}' selected ")
 
     @auth_required
     async def is_icp_ready(self) -> bool:
@@ -360,35 +363,8 @@ class Client:
         self._logger.info(f"{self}: ICP measure reading successful")
         return measure
 
+    @auth_required
     async def get_historical_consumption(
-        self, start: datetime, end: datetime
-    ) -> HistoricalConsumption:
-        return await self._get_historical_consumption(start, end)
-
-    async def get_historical_generation(
-        self, start: datetime, end: datetime
-    ) -> Dict[str, Any]:
-        return await self._get_historical_generic_data(
-            _GENERATION_PERIOD_ENDPOINT, start, end
-        )
-
-    @auth_required
-    async def _get_historical_generic_data(
-        self, url_template: str, start: datetime, end: datetime
-    ) -> Dict[Any, Any]:
-        start = min([start, end])
-        end = max([start, end])
-        url = url_template.format(start=start, end=end)
-
-        data = await self.request_json("GET", url, encoding="iso-8859-1")
-
-        base_date = datetime(start.year, start.month, start.day)
-        ret = parsers.parser_generic_historical_data(data, base_date)
-
-        return ret
-
-    @auth_required
-    async def _get_historical_consumption(
         self, start: datetime, end: datetime
     ) -> HistoricalConsumption:
         start = min([start, end])
@@ -398,23 +374,48 @@ class Client:
         data = await self.request_json("GET", url, encoding="iso-8859-1")
 
         ret = parsers.parse_historical_consumption(data)
-        ret.consumptions = [
-            x for x in ret.consumptions if x.start >= start and x.end < end
-        ]
+        ret.periods = [x for x in ret.periods if x.start >= start and x.end < end]
         return ret
 
+    async def get_historical_generation(
+        self, start: datetime, end: datetime
+    ) -> HistoricalGeneration:
+        start = min([start, end])
+        end = max([start, end])
+        url = _GENERATION_PERIOD_ENDPOINT.format(start=start, end=end)
+
+        data = await self.request_json("GET", url, encoding="iso-8859-1")
+        ret = parsers.parse_historical_generation(data)
+
+        return ret
+
+    # @auth_required
+    # async def _get_historical_generic_data(
+    #     self, url_template: str, start: datetime, end: datetime
+    # ) -> Dict[Any, Any]:
+    #     start = min([start, end])
+    #     end = max([start, end])
+    #     url = url_template.format(start=start, end=end)
+
+    #     data = await self.request_json("GET", url, encoding="iso-8859-1")
+
+    #     base_date = datetime(start.year, start.month, start.day)
+    #     ret = parsers.parser_generic_historical_data(data, base_date)
+
+    #     return ret
+
     @auth_required
-    async def get_historical_power_demand_limits(self):
-        url = _POWER_DEMAND_LIMITS_ENDPOINT
+    async def get_historical_power_demand(self) -> HistoricalPowerDemand:
+        @auth_required
+        async def _get_available_interval(client):
+            url = _POWER_DEMAND_LIMITS_ENDPOINT
 
-        data = await self.request_json("GET", url)
-        assert data.get("resultado") == "correcto"
+            data = await client.request_json("GET", url)
+            assert data.get("resultado") == "correcto"
 
-        return data
+            return data
 
-    @auth_required
-    async def get_historical_power_demand(self):
-        limits = await self.get_historical_power_demand_limits()
+        limits = await _get_available_interval(self)
         url = _POWER_DEMAND_PERIOD_ENDPOINT.format(**limits)
 
         data = await self.request_json("GET", url)

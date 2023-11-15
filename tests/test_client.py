@@ -66,9 +66,20 @@ class TestClient(unittest.IsolatedAsyncioTestCase):
             return_value=read_fixture("historical-consumption"),
         ):
             ret = await self.client.get_historical_consumption(self.start, self.end)
+            self.assertEqual(ret.total, 48867.0)
 
-            self.assertEqual(ret["accumulated"], 97871.0)
-            self.assertEqual(ret["accumulated-co2"], 23586.91)
+    @patch("ideenergy.Client.is_logged", return_value=True)
+    async def test_historical_generation(self, _):
+        with patch(
+            "ideenergy.Client.request_bytes",
+            new_class=AsyncMock,
+            side_effect=[read_fixture("historical-generation")],
+        ):
+            ret = await self.client.get_historical_generation(self.start, self.end)
+
+            self.assertEqual(len(ret.periods), 168)
+            self.assertEqual(ret.periods[25].start, datetime(2022, 8, 20, 1, 0))
+            self.assertEqual(ret.periods[25].value, 0.0)
 
     @patch("ideenergy.Client.is_logged", return_value=True)
     async def test_historical_power_demand(self, _):
@@ -82,10 +93,9 @@ class TestClient(unittest.IsolatedAsyncioTestCase):
         ):
             ret = await self.client.get_historical_power_demand()
 
-            self.assertEqual(len(ret), 50)
-            self.assertEqual(
-                ret[25], {"dt": datetime(2022, 5, 28, 22, 15), "value": 2816.0}
-            )
+            self.assertEqual(len(ret.demands), 58)
+            self.assertEqual(ret.demands[25].dt, datetime(2022, 5, 28, 22, 15))
+            self.assertEqual(ret.demands[25].value, 2816.0)
 
 
 if __name__ == "__main__":

@@ -20,27 +20,33 @@
 
 import itertools
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Any, Dict, Optional
 
-from .types import ConsumptionForPeriod, HistoricalConsumption
+from .types import (ConsumptionForPeriod, DemandAtInstant,
+                    HistoricalConsumption, HistoricalGeneration,
+                    HistoricalPowerDemand, PeriodValue)
 
 
-def parser_generic_historical_data(data, base_dt: datetime) -> Dict:
-    def _normalize_historical_item(idx: int, item: Optional[Dict]) -> Optional[Dict]:
+def parser_generic_historical_data(data, base_dt: datetime) -> Dict[str, Any]:
+    def _normalize_historical_item(
+        idx: int, item: Optional[Dict]
+    ) -> Optional[PeriodValue]:
         if item is None:
             return None
 
         start = base_dt + timedelta(hours=idx)
         try:
-            value = float(item["valor"])
+            return PeriodValue(
+                start=start, end=start + timedelta(hours=1), value=float(item["valor"])
+            )
         except (KeyError, ValueError, TypeError):
-            value = None
+            return None
 
-        return {
-            "start": start,
-            "end": start + timedelta(hours=1),
-            "value": value,
-        }
+        # return {
+        #     "start": start,
+        #     "end": start + timedelta(hours=1),
+        #     "value": value,
+        # }
 
     historical = data["y"]["data"][0]
     historical = [
@@ -49,8 +55,8 @@ def parser_generic_historical_data(data, base_dt: datetime) -> Dict:
     historical = [x for x in historical if x is not None]
 
     return {
-        "accumulated": float(data["acumulado"]),
-        "accumulated-co2": float(data["acumuladoCO2"]),
+        # "accumulated": float(data["acumulado"]),
+        # "accumulated-co2": float(data["acumuladoCO2"]),
         "historical": historical,
     }
 
@@ -71,7 +77,7 @@ def parse_historical_consumption(data) -> HistoricalConsumption:
     )
 
     for idx, value in enumerate(data[0]["valores"]):
-        ret.consumptions.append(
+        ret.periods.append(
             ConsumptionForPeriod(
                 start=start + timedelta(hours=idx),
                 end=start + timedelta(hours=idx + 1),
@@ -85,15 +91,27 @@ def parse_historical_consumption(data) -> HistoricalConsumption:
     return ret
 
 
-def parse_historical_power_demand_data(data) -> List[Dict]:
-    def _normalize_item(item: Dict):
-        return {
-            "dt": datetime.strptime(item["name"], "%d/%m/%Y %H:%M"),
-            "value": item["y"],
-        }
+def parse_historical_generation(data) -> HistoricalGeneration:
+    start = datetime.strptime(data["fechaPeriodo"], "%d-%m-%Y%H:%M:%S").replace(
+        hour=0, minute=0, second=0
+    )
+
+    parsed = parser_generic_historical_data(data, start)
+
+    return HistoricalGeneration(periods=parsed["historical"])
+
+
+def parse_historical_power_demand_data(data) -> HistoricalPowerDemand:
+    def _normalize_item(item: Dict) -> DemandAtInstant:
+        return DemandAtInstant(
+            dt=datetime.strptime(item["name"], "%d/%m/%Y %H:%M"),
+            value=item["y"],
+        )
 
     potMaxMens = data["potMaxMens"]
     potMaxMens = list(itertools.chain.from_iterable([x for x in potMaxMens]))
-    potMaxMens = [_normalize_item(x) for x in potMaxMens]
 
-    return potMaxMens
+    demands = [_normalize_item(x) for x in potMaxMens]
+    demands = list(sorted(demands, key=lambda x: x.dt))
+
+    return HistoricalPowerDemand(demands=demands)
