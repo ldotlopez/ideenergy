@@ -7,11 +7,14 @@ name = "pypi"
 aiohttp = "<4.0,>=3.8"
 
 [dev-packages]
+black = "*"
+build = "*"
 ipdb = "*"
 ipython = "*"
-build = "*"
-twine = "*"
+isort = "*"
 mypy = "*"
+pre-commit = "*"
+twine = "*"
 
 [requires]
 python_version = "3"

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Copyright (C) 2021-2022 Luis López <luis@cuarentaydos.com>
 #
 # This program is free software; you can redistribute it and/or
@@ -22,14 +20,19 @@ import itertools
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
-from .types import (ConsumptionForPeriod, DemandAtInstant,
-                    HistoricalConsumption, HistoricalGeneration,
-                    HistoricalPowerDemand, PeriodValue)
+from .types import (
+    ConsumptionForPeriod,
+    DemandAtInstant,
+    HistoricalConsumption,
+    HistoricalGeneration,
+    HistoricalPowerDemand,
+    PeriodValue,
+)
 
 
-def parser_generic_historical_data(data, base_dt: datetime) -> Dict[str, Any]:
+def parser_generic_historical_data(data, base_dt: datetime) -> dict[str, Any]:
     def _normalize_historical_item(
-        idx: int, item: Optional[Dict]
+        idx: int, item: Optional[dict]
     ) -> Optional[PeriodValue]:
         if item is None:
             return None
@@ -102,7 +105,7 @@ def parse_historical_generation(data) -> HistoricalGeneration:
 
 
 def parse_historical_power_demand_data(data) -> HistoricalPowerDemand:
-    def _normalize_item(item: Dict) -> DemandAtInstant:
+    def _normalize_item(item: dict) -> DemandAtInstant:
         return DemandAtInstant(
             dt=datetime.strptime(item["name"], "%d/%m/%Y %H:%M"),
             value=item["y"],
