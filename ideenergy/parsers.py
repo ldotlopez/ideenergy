@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Copyright (C) 2021-2022 Luis López <luis@cuarentaydos.com>
 #
 # This program is free software; you can redistribute it and/or
@@ -18,13 +16,13 @@
 # USA.
 
 
-import itertools
 import datetime
+import itertools
 from typing import Dict
 
 
-def parser_generic_historical_data(data, base_dt: datetime.datetime) -> Dict:
-    def _normalize_historical_item(idx: int, item: Dict | None) -> Dict | None:
+def parser_generic_historical_data(data, base_dt: datetime.datetime) -> dict:
+    def _normalize_historical_item(idx: int, item: dict | None) -> dict | None:
         if item is None:
             return None
 
@@ -53,8 +51,8 @@ def parser_generic_historical_data(data, base_dt: datetime.datetime) -> Dict:
     }
 
 
-def parse_historical_power_demand_data(data) -> Dict:
-    def _normalize_power_spike_item(item: Dict):
+def parse_historical_power_demand_data(data) -> dict:
+    def _normalize_power_spike_item(item: dict):
         return {
             "dt": datetime.datetime.strptime(item["name"], "%d/%m/%Y %H:%M"),
             "value": item["y"],

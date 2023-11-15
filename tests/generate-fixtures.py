@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 # Copyright (C) 2021-2022 Luis López <luis@cuarentaydos.com>
 #
@@ -20,10 +19,9 @@
 
 
 import asyncio
-from ideenergy import client
-from ideenergy import get_credentials, get_session
-
 from datetime import datetime, timedelta
+
+from ideenergy import client, get_credentials, get_session
 
 
 async def main():

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Copyright (C) 2021-2022 Luis López <luis@cuarentaydos.com>
 #
 # This program is free software; you can redistribute it and/or
@@ -25,10 +23,10 @@ from .client import (
     Client,
     ClientError,
     CommandError,
-    get_session,
     InvalidContractError,
     InvalidData,
     RequestFailedError,
+    get_session,
 )
 
 
@@ -38,7 +36,7 @@ def get_credentials(parsedargs=None, credentials=None, environ_prefix="IDEENERGY
 
     credentials = credentials or getattr(parsedargs, "credentials", None)
     if credentials:
-        with open(credentials, mode="r", encoding="utf-8") as fh:
+        with open(credentials, encoding="utf-8") as fh:
             d = json.loads(fh.read())
         return d["username"], d["password"]
 

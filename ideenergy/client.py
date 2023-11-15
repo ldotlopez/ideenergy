@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Copyright (C) 2021-2022 Luis López <luis@cuarentaydos.com>
 #
 # This program is free software; you can redistribute it and/or
@@ -26,6 +24,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
+
 from . import parsers
 
 _BASE_URL = "https://www.i-de.es/consumidores/rest"
@@ -74,7 +73,7 @@ class Measure:
     accumulate: int
     instant: float
 
-    def asdict(self) -> Dict[str, Union[int, float]]:
+    def asdict(self) -> dict[str, Union[int, float]]:
         return dataclasses.asdict(self)
 
 
@@ -140,7 +139,7 @@ class Client:
 
     async def request_json(
         self, method: str, url: str, encoding: str = "utf-8", **kwargs
-    ) -> Dict[Any, Any]:
+    ) -> dict[Any, Any]:
         buff = await self.request_bytes(method, url, **kwargs)
         data = json.loads(buff.decode(encoding))
         return data
@@ -211,7 +210,7 @@ class Client:
         return ret
 
     @auth_required
-    async def get_contract_details(self) -> Dict[str, Any]:
+    async def get_contract_details(self) -> dict[str, Any]:
         """
         {
             "ape1Titular": "xxxxxx                                       ",
@@ -279,7 +278,7 @@ class Client:
         return data
 
     @auth_required
-    async def get_contracts(self) -> List[Dict[str, Any]]:
+    async def get_contracts(self) -> list[dict[str, Any]]:
         """
         {
             'success': true,
@@ -351,14 +350,14 @@ class Client:
 
     async def get_historical_consumption(
         self, start: datetime, end: datetime
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         return await self._get_historical_generic_data(
             _CONSUMPTION_PERIOD_ENDPOINT, start, end
         )
 
     async def get_historical_generation(
         self, start: datetime, end: datetime
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         return await self._get_historical_generic_data(
             _GENERATION_PERIOD_ENDPOINT, start, end
         )
@@ -366,7 +365,7 @@ class Client:
     @auth_required
     async def _get_historical_generic_data(
         self, url_template: str, start: datetime, end: datetime
-    ) -> Dict[Any, Any]:
+    ) -> dict[Any, Any]:
         start = min([start, end])
         end = max([start, end])
         url = url_template.format(start=start, end=end)
