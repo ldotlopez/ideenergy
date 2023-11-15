@@ -11,6 +11,7 @@ ipdb = "*"
 ipython = "*"
 build = "*"
 twine = "*"
+mypy = "*"
 
 [requires]
 python_version = "3"
