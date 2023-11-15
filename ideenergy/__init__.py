@@ -30,7 +30,7 @@ from .client import (
 )
 
 
-def get_credentials(parsedargs=None, credentials=None, environ_prefix="IDEENERGY"):
+def get_credentials(parsedargs=None, credentials=None, environ_prefix="I_DE_ENERGY"):
     if parsedargs and parsedargs.username:
         return parsedargs.username, parsedargs.password
 

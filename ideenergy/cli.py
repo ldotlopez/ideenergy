@@ -45,8 +45,8 @@ def build_arg_parser():
     return parser
 
 
-async def main():
-    async def _main():
+async def _main():
+    async def get_requested_data():
         if args.list_contracts:
             contracts = await client.get_contracts()
             contracts = {x["codContrato"]: x for x in contracts}
@@ -91,7 +91,7 @@ async def main():
     )
 
     try:
-        if data := await _main():
+        if data := await get_requested_data():
             print(pprint.pformat(data))
 
     except RequestFailedError as e:
@@ -102,5 +102,11 @@ async def main():
     await session.close()
 
 
+def main():
+    return asyncio.run(_main())
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    import sys
+
+    sys.exit(main())

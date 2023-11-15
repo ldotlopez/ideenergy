@@ -15,9 +15,10 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
 # USA.
 
-import asyncio
 
 from .cli import main
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import sys
+
+    sys.exit(main())

@@ -1,11 +1,29 @@
 # https://packaging.python.org/tutorials/packaging-projects/
 
+
+[project]
+name = "ideenergy"
+version = "2.0.0a0"
+dependencies = [
+    "aiohttp <4.0,>=3.8",
+    "importlib-metadata; python_version >= '3.9'",
+]
+
 [build-system]
 requires = [
     "setuptools>=42",
     "wheel"
 ]
 build-backend = "setuptools.build_meta"
+
+[bdist_wheel]
+universal = 1
+
+[project.scripts]
+ideenergy = "ideenergy.cli:main"
+
+[tool.setuptools]
+packages = ["ideenergy"]
 
 [tool.black]
 target-version = ['py39']
