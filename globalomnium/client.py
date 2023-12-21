@@ -185,7 +185,7 @@ class Client:
         if not isinstance(data, dict):
             raise InvalidData(data)
 
-        if data.get("success", "false") != "true":
+        if data.get("result", "false") != "true":
             raise CommandError(data)
 
         self._login_ts = datetime.now()
@@ -292,7 +292,7 @@ class Client:
         }
         """
         data = await self.request_json("GET", _CONTRACTS_ENDPOINT)
-        if not data.get("success", False):
+        if not data.get("result", False):
             raise CommandError(data)
 
         try:
@@ -308,7 +308,7 @@ class Client:
         resp = await self.request_json(
             "GET", _CONTRACT_SELECTION_ENDPOINT + id
         )  # para GO utiliza el Payload suministro=abcd124.....
-        if not resp.get("success", False):
+        if not resp.get("result", False):
             raise InvalidContractError(id)
 
         self._contract = id
