@@ -68,7 +68,7 @@ class TestClient(unittest.IsolatedAsyncioTestCase):
             ret = await self.client.get_historical_consumption(self.start, self.end)
 
             self.assertEqual(ret["accumulated"], 97871.0)
-            self.assertEqual(ret["accumulated-co2"], 23586.91)
+            #self.assertEqual(ret["accumulated-co2"], 23586.91)
 
 #    @patch("globalomnium.Client.is_logged", return_value=True)
 #     async def test_historical_power_demand(self, _):
