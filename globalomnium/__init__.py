@@ -73,19 +73,15 @@ __doc__ = """
     response code: 200
     response json:
     {
-        "redirect": "informacion-del-contrato",
-        "zona": "B",
-        "success": "true",
-        "idioma": "ES",
-        "uCcr": "",
+
     }
 
     scenario: Invalid credentials.
     response code: 200
     response json:
     {
-        "success": "false",
-        "message": "El usuario o la contraseña que has introducido son incorrectos. Por favor, inténtalo de nuevo.",
+        "result": false,
+        "error": "Error de inicio de sesión, comprueba que las credencias son válidas."
     }
 
 
@@ -93,8 +89,7 @@ __doc__ = """
     response code: 200
     response json:
     {
-      "success": "false",
-      "message": "Número de intentos de acceso excedido. Usuario bloqueado temporalmente. Vuelva a intentarlo dentro de 5 minutos."
+    
     }
 
     # Retuned JSON payloads for measures (exposed keys: "valLecturaContador", "valMagnitud", "valEstado")

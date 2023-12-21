@@ -88,7 +88,7 @@ async def main():
 
     session = await get_session()
     client = Client(
-        userame=username, password=password, session=session, logger=logger
+        username=username, password=password, session=session, logger=logger
     )
 
     try:

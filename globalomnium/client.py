@@ -30,23 +30,15 @@ import aiohttp
 from . import parsers
 from .types import HistoricalConsumption
 
-_BASE_URL = "https://www.aguasdevalencia.es/VirtualOffice"
+#_BASE_URL = "https://www.aguasdevalencia.es/VirtualOffice"
+_BASE_URL = "https://www.globalomnium.com/VirtualOffice"
 
-#
-# URLs not confirmed since begining of the times
-#
 _CONTRACTS_ENDPOINT = f"{_BASE_URL}/Secure/action_getSuministros/"
 _CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/Secure/action_getSuministro/"
 _CONTRACT_SELECTION_ENDPOINT = f"{_BASE_URL}/Secure/action_setSuministroActivo/"
-# _GENERATION_PERIOD_ENDPOINT = (
-#     f"{_BASE_URL}/consumoNew/obtenerDatosGeneracionPeriodo/"
-#     "fechaInicio/{start:%d-%m-%Y}00:00:00/"
-#     "fechaFinal/{end:%d-%m-%Y}00:00:00/"
-# )
-# _ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
 _LOGIN_ENDPOINT = f"{_BASE_URL}/action_Login/"
 _MEASURE_ENDPOINT = (
-    f"{_BASE_URL}/action_getDatosLecturaHorariaEntreFechas/"
+    f"{_BASE_URL}/Secure/action_getDatosLecturaHorariaEntreFechas/"
     "{start:%d/%m/%Y}/"
     "{end:%d/%m/%Y}/"
 )
@@ -61,13 +53,6 @@ _CONSUMPTION_PERIOD_ENDPOINT = (
     "{start:%d/%m/%Y}/"
     "{end:%d/%m/%Y}/"
 )
-
-# _POWER_DEMAND_LIMITS_ENDPOINT = f"{_BASE_URL}/consumoNew/obtenerLimitesFechasPotencia/"
-# _POWER_DEMAND_PERIOD_ENDPOINT = (
-#     f"{_BASE_URL}/consumoNew/obtenerPotenciasMaximasRangoV2/"
-#     # fecMin and fecMax are provided by _POWER_DEMAND_LIMITS_ENDPOINT
-#     "{fecMin}/{fecMax}"
-# )
 
 
 async def get_session() -> aiohttp.ClientSession:
@@ -193,6 +178,7 @@ class Client:
             "pass": self.password,
             "remember": "true",
             "suministro": "",
+            "action": "",
         }
 
         data = await self.request_json("POST", _LOGIN_ENDPOINT, json=payload)
@@ -293,22 +279,14 @@ class Client:
     async def get_contracts(self) -> List[Dict[str, Any]]:
         """
         {
-            'success': true,
-            'contratos': [
+            "data": [
                 {
-                    'direccion': 'xxxxxxxxxxxxxxxxxxxxxxx',
-                    'cups': 'ES0000000000000000AB',
-                    'tipo': 'A',
-                    'tipUsoEnergiaCorto': '-',
-                    'tipUsoEnergiaLargo': '-',
-                    'estContrato': 'Alta',
-                    'codContrato': '123456789',
-                    'esTelegestionado': True,
-                    'presion': '1.00',
-                    'fecUltActua': '01.01.1970',
-                    'esTelemedido': False,
-                    'tipSisLectura': 'TG',
-                    'estadoAlta': True
+                    "referencia": "00000000/000",
+                    "direccion": "C/ ABC, 123",
+                    "poblacion": "ABC",
+                    "estado": "Activo",
+                    "datos": "...",
+                    "tipo": "..."
                 }
             ]
         }
