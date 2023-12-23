@@ -146,3 +146,4 @@ cython_debug/
 credentials.json
 *.sublime-workspace
 Pipfile.lock
+alt/

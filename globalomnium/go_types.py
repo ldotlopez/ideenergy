@@ -4,7 +4,6 @@ from datetime import datetime
 
 from typing import List, Dict
 
-
 @dataclass
 class PeriodValue:
     start: datetime

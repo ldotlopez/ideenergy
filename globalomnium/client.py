@@ -28,30 +28,31 @@ from typing import Any, Dict, List, Optional, Union
 import aiohttp
 
 from . import parsers
-from .types import HistoricalConsumption
+from .go_types import HistoricalConsumption
 
 #_BASE_URL = "https://www.aguasdevalencia.es/VirtualOffice"
 _BASE_URL = "https://www.globalomnium.com/VirtualOffice"
 
 _CONTRACTS_ENDPOINT = f"{_BASE_URL}/Secure/action_getSuministros/"
-_CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/Secure/action_getSuministro/"
-_CONTRACT_SELECTION_ENDPOINT = f"{_BASE_URL}/Secure/action_setSuministroActivo/"
+_CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/Secure/action_getSuministro/" # Not working at the moment
+_CONTRACT_SELECTION_ENDPOINT = f"{_BASE_URL}/Secure/action_setSuministroActivo/" # Not tested
 _LOGIN_ENDPOINT = f"{_BASE_URL}/action_Login/"
 _MEASURE_ENDPOINT = (
     f"{_BASE_URL}/Secure/action_getDatosLecturaHorariaEntreFechas/"
-    "{start:%d/%m/%Y}/"
-    "{end:%d/%m/%Y}/"
+#    "{start:%d/%m/%Y}/"
+#    "{end:%d/%m/%Y}/"
 )
 
 #
 # URLs reviewed on 2023-06-22
 #
 _CONSUMPTION_PERIOD_ENDPOINT = (
-    f"{_BASE_URL}/action_getHistorialLecturasWmtM/"
-    # "{start:%d-%m-%Y}/"
-    # "{end:%d-%m-%Y}/"
-    "{start:%d/%m/%Y}/"
-    "{end:%d/%m/%Y}/"
+    f"{_BASE_URL}/Secure/action_getDatosLecturaHorariaEntreFechas/"
+#    f"{_BASE_URL}/action_getHistorialLecturasWmtM/"
+#    # "{start:%d-%m-%Y}/"
+#    # "{end:%d-%m-%Y}/"
+#    "{start:%d/%m/%Y}/"
+#    "{end:%d/%m/%Y}/"
 )
 
 
@@ -81,16 +82,9 @@ class Measure:
 
 class Client:
     _HEADERS = {
-        # "Content-Type": "application/json; charset=utf-8",
-        # "esVersionNueva": "1",
-        # "idioma": "es",
-        # "movilAPP": "si",
-        # "tipoAPP": "ios",
-        # "User-Agent": (
-        #     "Mozilla/5.0 (iPhone; CPU iPhone OS 11_4_1 like Mac OS X) "
-        #     "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15G77"
-        # ),
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "Accept": "*/*",
+        "User-Agent": "py-globalomnium/2023.12.1",
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
     }
 
     def __init__(
@@ -166,22 +160,15 @@ class Client:
     async def login(self) -> None:
         """
         {
-            'redirect': 'informacion-del-contrato',
-            'zona': 'B',
-            'success': 'true',
-            'idioma': 'ES',
-            'uCcr': ''
+        "result": true,
+        "error": "",
+        "redirectURL": "/VirtualOffice/Secure/action_login"
         }
         """
-        payload = {
-            "login": self.username,
-            "pass": self.password,
-            "remember": "true",
-            "suministro": "",
-            "action": "",
-        }
+        login_payload = "login="+ self.username +"&pass="+ self.password + "&remember=true" + "&suministro="
 
-        data = await self.request_json("POST", _LOGIN_ENDPOINT, json=payload)
+
+        data = await self._request("POST", _LOGIN_ENDPOINT, data=login_payload) #si no funciona, cambiar el data inicial por response o similar
         if not isinstance(data, dict):
             raise InvalidData(data)
 
@@ -190,12 +177,13 @@ class Client:
 
         self._login_ts = datetime.now()
 
-        if self._contract:
-            await self.select_contract(self._contract)
+    # Desconozco como está funcionando la parte de los contratos así que la comento para descartar errores
+    #    if self._contract:
+    #        await self.select_contract(self._contract)
 
         self._logger.info(f"{self}: successful authentication")
 
-    @auth_required
+    #@auth_required
     # async def is_icp_ready(self) -> bool:
     #     """
     #     {
@@ -211,62 +199,112 @@ class Client:
     async def get_contract_details(self) -> Dict[str, Any]:
         """
         {
-            "ape1Titular": "xxxxxx                                       ",
-            "ape2Titular": "xxxxxx                                       ",
-            "codCliente": "12345678",
-            "codContrato": 123456789.0,
-            "codPoblacion": "000000",
-            "codProvincia": "00",
-            "codPostal": "00000",
-            "codSociedad": 3,
-            "codTarifaIblda": "92T0",
-            "codTension": "09",
-            "cups": "ES0000000000000000XY",
-            "direccion": "C/ XXXXXXXXXXXXXXXXXX, 12 , 34 00000-XXXXXXXXXXXXXXXXXXXX"
-                " - XXXXXXXXX           ",
-            "dni": "12345678Y",
-            "emailFactElec": "xxxxxxxxx@xxxxx.com",
-            "esAutoconsumidor": False,
-            "esAutogenerador": False,
-            "esPeajeDirecto": False,
-            "fecAltaContrato": "2000-01-01",
-            "fecBajaContrato": 1600000000000,
-            "fecUltActua": "22.10.2021",
-            "indEstadioPS": 4,
-            "indFraElectrn": "N",
-            "nomGestorOficina": "XXXXXXXXXXXX                                      ",
-            "nomPoblacion": "XXXXXXXXXXXXXXXXXXXX                         ",
-            "nomProvincia": "XXXXXXXXX                                    ",
-            "nomTitular": "XXXXX                                        ",
-            "numCtaBancaria": "0",
-            "numTelefono": "         ",
-            "numTelefonoAdicional": "123456789",
-            "potDia": 0.0,
-            "potMaxima": 5750,
-            "presion": "1.00",
-            "puntoSuministro": "1234567.0",
-            "tipAparato": "CN",
-            "tipCualificacion": "PP",
-            "tipEstadoContrato": "AL",
-            "tipo": "A",
-            "tipPuntoMedida": None,
-            "tipSectorEne": "01",
-            "tipSisLectura": "TG",
-            "tipSuministro": None,
-            "tipUsoEnerg": "",
-            "listContador": [
-                {
-                    "fecInstalEquipo": "28-01-2011",
-                    "propiedadEquipo": "i-DE",
-                    "tipAparato": "CONTADOR TELEGESTION",
-                    "tipMarca": "ZIV",
-                    "numSerieEquipo": 12345678.0,
-                }
-            ],
-            "esTelegestionado": True,
-            "esTelegestionadoFacturado": True,
-            "esTelemedido": False,
-            "cau": None,
+            "result": true,
+            "data": "\r\n
+                    \u003cscript src=\"/bundles/account-form?v=91246\"\u003e\u003c/script\u003e\r\n
+                    \r\n
+                    \u003cscript\u003e\r\n
+                    var DatoValido = \"Introduzca un dato válido\";\r\n
+                    var AnadirTelfContacto = \"Añadir teléfono\";\r\n
+                    \r\n
+                    \r\n
+                    var codEstadoFactMensual = \"\";\r\n
+                    var poblacion = \"1200@010@VAL\u0026#200;NCIA                                \";\r\n
+                    var referencia = \"00000000/000\";\r\n
+                    var email = \"usuario@dominio.com\";\r\n
+                    var nombre = \"MI NOMBRE\";\r\n
+                    var ape1 = \"PRIMER APELLIDO\";\r\n
+                    var ape2 = \"SEGUNDO APELLIDO\";\r\n
+                    var documento = \"48594742C\";\r\n
+                    var telefono = \"625966487\";\r\n
+                    var descPeriodoFacturacion = \"BIMESTRAL\";\r\n
+                    var codSuministro = \"...\";\r\n
+                    \u003c/script\u003e\r\n\u003cstyle type=\"text/css\"\u003e\r\n
+                    ...
+                    \u003c/style\u003e\r\n
+                    \u003c!-- INICIO / MODAL Suministro --\u003e\r\n
+                    ...
+                    \u003ch4 class=\"modal-title\"\u003eDatos del suministro: C/AAAAA BBBBBB CCCCC, 0, ABC, 132                      . VAL\u0026#200;NCIA                                 (VALENCIA                      )\u003c/h4\u003e\r\n
+                    \u003c/div\u003e\r\n
+                    \u003cdiv class=\"modal-body\"\u003e\r\n
+                    \u003ch2\u003eDatos del suministro\u003c/h2\u003e\r\n
+                    \u003cform\u003e\r\n
+                    \u003cdiv class=\"row\"\u003e\r\n
+                    \r\n
+                    \u003cdiv class=\"form-group\"\u003e\r\n
+                    \u003cdiv class=\"col-md-4\"\u003e\r\n
+                    \u003clabel\u003eReferencia\u003c/label\u003e\r\n
+                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"00000000/000\" disabled=\"disabled\"\u003e\r\n
+                    \u003c/div\u003e\r\n
+                    \u003cdiv class=\"col-md-4\"\u003e\r\n
+                    \u003clabel\u003eFecha de contrataci\u0026#243;n\u003c/label\u003e\r\n
+                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"01/01/2000\" disabled=\"disabled\"\u003e\r\n
+                    \r\n
+                    \u003c/div\u003e\r\n
+                    \u003cdiv class=\"col-md-4\"\u003e\r\n
+                    \u003clabel\u003eTipo\u003c/label\u003e\r\n
+                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"Contador Simple     \" disabled=\"disabled\"\u003e\r\n
+                    \u003c/div\u003e\r\n 
+                    \u003c/div\u003e\r\n
+                    \u003cdiv class=\"form-group\"\u003e\r\n
+                    \u003cdiv class=\"col-md-3\"\u003e\r\n
+                    \u003clabel\u003eCalibre contador\u003c/label\u003e\r\n
+                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"015 mm\" disabled=\"disabled\"\u003e\r\n
+                    \u003c/div\u003e\r\n
+                    \u003cdiv class=\"col-md-3\"\u003e\r\n
+                    \u003clabel\u003eUso\u003c/label\u003e\r\n
+                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"DOMESTICO                \" disabled=\"disabled\"\u003e\r\n
+                    \u003c/div\u003e\r\n
+                    \u003cdiv class=\"col-md-3\"\u003e\r\n
+                    \u003clabel\u003eDestino\u003c/label\u003e\r\n
+                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"Normal                        \" disabled=\"disabled\"\u003e\r\n
+                    \u003c/div\u003e\r\n
+                    \u003cdiv class=\"col-md-3\"\u003e\r\n
+                    \u003clabel\u003eEmplazamiento\u003c/label\u003e\r\n
+                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"BATERIA             \" disabled=\"disabled\"\u003e\r\n
+                    \r\n
+                    \u003c/div\u003e\r\n
+                    \u003c/div\u003e\r\n
+                    \u003cdiv class=\"form-group\"\u003e\r\n
+                    \u003cdiv class=\"col-md-6\"\u003e\r\n
+                    \u003clabel\u003eDirecci\u0026#243;n\u003c/label\u003e\r\n
+                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"C/AAAAA BBBBBB CCCCC, 0, ABC, 132           \" disabled=\"disabled\"\u003e\r\n
+                    \u003c/div\u003e\r\n
+                    \u003cdiv class=\"col-md-6\"\u003e\r\n
+                    \u003clabel\u003ePoblaci\u0026#243;n\u003c/label\u003e\r\n
+                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"VAL\u0026#200;NCIA                                \" disabled=\"disabled\"\u003e\r\n
+                    \u003c/div\u003e\r\n
+                    \u003c/div\u003e\r\n
+                    \u003c/div\u003e\r\n
+                    \r\n
+                    \u003c/form\u003e\r\n
+                    \u003chr /\u003e\r\n
+                    \r\n
+                    \u003cdiv class=\"row\"\u003e\r\n
+                    \u003cdiv class=\"form-group\"\u003e\r\n
+                    \u003cdiv class=\"col-md-12\"\u003e\r\n
+                    \u003ch2\u003eDatos generales\u003c/h2\u003e\r\n
+                    \u003c/div\u003e\r\n
+                    \r\n
+                    \u003c/div\u003e\r\n
+                    \r\n
+                    \u003cdiv class=\"form-group\"\u003e\r\n
+                    \u003cdiv class=\"col-md-6\"\u003e\r\n
+                    \u003cform\u003e\r\n
+                    \u003clabel\u003eEm@il \u003c/label\u003e\r\n
+                    \u003cinput id=\"frm_sol_email\" value=\"USUARIO@DOMINIO.COM\" name=\"frm_sol_email\" required disabled=\"disabled\" type=\"email\" class=\"form-control\" maxlength=\"110\"\u003e\r\n
+                    \u003c/form\u003e\r\n
+                    ...
+                    \u003ch2\u003eDirecci\u0026#243;n de env\u0026#237;o postal\u003c/h2\u003e\r\n
+                    ...
+                    \u003ch2\u003eCuenta bancaria\u003c/h2\u003e\r\n
+                    ...
+                    \u003clabel\u003eTitular *\u003c/label\u003e
+                    \u003cinput type=\"text\" value=\"MI NOMPRE PRIMER APELLIDO SEGUNDO APELLIDO" maxlength=\"100\" class=\"form-control disabled\" disabled=\"disabled\"\u003e\r\n
+                    \u003clabel\u003eCuenta bancaria *\u003c/label\u003e\r\n
+                    \u003cinput type=\"text\" value=\"ES00/0000/0000/00/0000******\" data-msg-required=\"Por favor rellene el campo\" class=\"form-control\" style=\"text-transform: uppercase\" data-original=\"ES05/0182/5020/29/0201******\"\r\n
+                    ...
+                    u003c!-- FIN / MODAL Suministro --\u003e"
         }
         """
         data = await self.request_json("GET", _CONTRACT_DETAILS_ENDPOINT)
@@ -279,72 +317,124 @@ class Client:
     async def get_contracts(self) -> List[Dict[str, Any]]:
         """
         {
-            "data": [
-                {
-                    "referencia": "00000000/000",
-                    "direccion": "C/ ABC, 123",
-                    "poblacion": "ABC",
-                    "estado": "Activo",
-                    "datos": "...",
-                    "tipo": "..."
-                }
-            ]
+        "data": [
+            {
+            "referencia": "00000000/000",
+            "direccion": "C/AAAAA BBBBBB CCCCC, 0, ABC, 132           ",
+            "poblacion": "VALÈNCIA                                ",
+            "estado": "Activo",
+            "datos": "...",
+            "tipo": "..."
+            }
+        ]
         }
         """
-        data = await self.request_json("GET", _CONTRACTS_ENDPOINT)
+        current_timestamp = int(datetime.now().timestamp() * 1000)
+        json_payload = json.dumps({"order": "asc", "_": str(current_timestamp)})
+        data = await self.request_json("GET", _CONTRACTS_ENDPOINT, json=json_payload) #no tengo claro si hay que usar json= o data= en los argumentos
         if not data.get("result", False):
             raise CommandError(data)
 
         try:
             # return data["contratos"]
-            return data[
-                "referencia"
-            ]  # en realidad el código "variable" del contrato va metido en medio de la cadena ["datos"]
+            return data  # en realidad el código "variable" del contrato va metido en medio de la cadena ["datos"]
         except KeyError:
             raise InvalidData(data)
 
-    @auth_required
-    async def select_contract(self, id: str) -> None:
-        resp = await self.request_json(
-            "GET", _CONTRACT_SELECTION_ENDPOINT + id
-        )  # para GO utiliza el Payload suministro=abcd124.....
-        if not resp.get("result", False):
-            raise InvalidContractError(id)
-
-        self._contract = id
-        self._logger.info(f"{self}: '{id}' contract selected")
+# Desconozco como está funcionando la parte de los contratos así que la comento para descartar errores
+#    @auth_required
+#    async def select_contract(self, id: str) -> None:
+#        resp = await self.request_json(
+#            "GET", _CONTRACT_SELECTION_ENDPOINT + id
+#        )  # para GO utiliza el Payload suministro=abcd124.....
+#        if not resp.get("result", False):
+#            raise InvalidContractError(id)
+#
+#        self._contract = id
+#        self._logger.info(f"{self}: '{id}' contract selected")
 
     @auth_required
     async def get_measure(self) -> Measure:
         """
         {
-            "valMagnitud": "158.64",
-            "valInterruptor": "1",
-            "valEstado": "09",
-            "valLecturaContador": "43167",
-            "codSolicitudTGT": "012345678901",
+        "result": true,
+        "data": {
+            "labels": [
+            "22/12 00:00",
+            "22/12 01:00"
+            ],
+            "datasets": [
+            {
+                "label": "Consumo litros",
+                "data": [
+                {
+                    "title": "160,684",
+                    "y": 0
+                },
+                {
+                    "title": "160,684",
+                    "y": 1
+                }
+                ]
+            },
+            {
+                "label": "Lectura m3",
+                "data": null
+            }
+            ]
+        },
+        "table": [
+            {
+            "Fecha": "/Date(1703199600000)/",
+            "FechaString": "<span style='display:none'>202312220000 - </span>22/12/2023 0:00:00",
+            "FechaDesde": null,
+            "FechaHasta": null,
+            "Periodo": null,
+            "Consumo": "0",
+            "TipoLectura": null,
+            "Observacion": "22/12 00:00",
+            "Lectura": "160,684"
+            },
+            {
+            "Fecha": "/Date(1703203200000)/",
+            "FechaString": "<span style='display:none'>202312220100 - </span>22/12/2023 1:00:00",
+            "FechaDesde": null,
+            "FechaHasta": null,
+            "Periodo": null,
+            "Consumo": "1",
+            "TipoLectura": null,
+            "Observacion": "22/12 01:00",
+            "Lectura": "160,684"
+            }
+        ],
+        "alarmas": ""
         }
         """
 
-        self._logger.debug("Requesting data to the ICP, may take up to a minute.")
-        data = await self.request_json("GET", _MEASURE_ENDPOINT)
+        self._logger.debug("Requesting data may take up to a minute.")
+
+        end_today = datetime.now().strftime("%d/%m/%Y")
+        start_yesterday = (datetime.now() - timedelta(days=1)).strftime("%d/%m/%Y")
+        payload = f"start={start_yesterday}&end={end_today}"
+
+        data = await self._request("GET", _MEASURE_ENDPOINT, data=payload) #si no funciona, cambiar el data inicial por response o similar
 
         self._logger.debug(f"Got reply, raw data: {data!r}")
 
         try:
             measure = Measure(
                 accumulate=int(
-                    data["Lectura"]
-                ),  # si no funciona, poner table antes de lectura
+                    data["table"][-1]["Lectura"]
+                ),  # accedo solo al último elemento para la lectura "instantanea"
                 instant=float(
-                    data["Consumo"]
-                ),  # si no funciona, poner table antes de consumo
+                    data["table"][-1]["Consumo"]
+                ),  # accedo solo al último elemento para la lectura "instantanea"
             )
 
         except (KeyError, ValueError) as e:
             raise InvalidData(data) from e
 
-        self._logger.info(f"{self}: ICP measure reading successful")
+        self._logger.info(f"{self}: Measure reading successful")
         return measure
 
     async def get_historical_consumption(
@@ -359,7 +449,7 @@ class Client:
     #         _GENERATION_PERIOD_ENDPOINT, start, end
     #    )
 
-    @auth_required
+    @auth_required # este trozo de abajo también se puede quitar???
     async def _get_historical_generic_data(
         self, url_template: str, start: datetime, end: datetime
     ) -> Dict[Any, Any]:
@@ -372,7 +462,7 @@ class Client:
         base_date = datetime(start.year, start.month, start.day)
         ret = parsers.parser_generic_historical_data(data, base_date)
 
-        return ret
+        return ret # este trozo de arriba también se puede quitar???
 
     @auth_required
     async def _get_historical_consumption(
@@ -380,9 +470,9 @@ class Client:
     ) -> HistoricalConsumption:
         start = min([start, end])
         end = max([start, end])
-        url = _CONSUMPTION_PERIOD_ENDPOINT.format(start=start, end=end)
+        payload = f"start={start}&end={end}"
 
-        data = await self.request_json("GET", url, encoding="iso-8859-1")
+        data = await self._request("GET", _CONSUMPTION_PERIOD_ENDPOINT, data=payload) #si no funciona, cambiar el data inicial por response o similar
 
         ret = parsers.parse_historical_consumption(data)
         ret.consumptions = [
@@ -390,7 +480,7 @@ class Client:
         ]
         return ret
 
-    @auth_required
+    # @auth_required
     # async def get_historical_power_demand_limits(self):
     #     url = _POWER_DEMAND_LIMITS_ENDPOINT
     #
@@ -399,7 +489,7 @@ class Client:
     #
     #     return data
 
-    @auth_required
+    # @auth_required
     # async def get_historical_power_demand(self):
     #     limits = await self.get_historical_power_demand_limits()
     #     url = _POWER_DEMAND_PERIOD_ENDPOINT.format(**limits)

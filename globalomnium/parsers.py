@@ -18,11 +18,12 @@
 # USA.
 
 
-import itertools
+# import itertools
+import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
-from .types import ConsumptionForPeriod, HistoricalConsumption
+from .go_types import ConsumptionForPeriod, HistoricalConsumption
 
 
 def parser_generic_historical_data(data, base_dt: datetime) -> Dict:
@@ -56,22 +57,23 @@ def parser_generic_historical_data(data, base_dt: datetime) -> Dict:
 
 
 def parse_historical_consumption(data) -> HistoricalConsumption:
-    def list_to_dict(values, keys):
-        return {keys[idx]: values[idx] for idx in range(len(values))}
+    # def list_to_dict(values, keys):
+    #    return {keys[idx]: values[idx] for idx in range(len(values))}
 
     # CORREGIR, YA QUE EN GO EXISTE EL CAMPO FECHA DESDE PERO ESTA EN BLANCO, ESTA LA FEHA EN UN CAMPO STRING QUE HAY QUE DECODIFICAR
-    start = datetime.strptime(table[0]["FechaDesde"], "%d-%m-%Y").replace(
-        hour=0, minute=0, second=0
-    )
+    timestamp_matches = re.findall(r'\d+', data["table"][0]["Fecha"])
+    timestamp = int(timestamp_matches[0]) // 1000
+    start = datetime.fromtimestamp(timestamp)
+  
 
-    period_names = table[0]["Periodo"]
+    # period_names = table[0]["Periodo"]
 
     ret = HistoricalConsumption(
-        total=table[0]["Lectura"],
+        total=data["table"][0]["Lectura"],
         # desglosed=list_to_dict(data[0]["totalesPeriodosTarifarios"], period_names),
     )
 
-    for idx, value in enumerate(tabla[0]["Lectura"]):
+    for idx, value in enumerate(data["table"][0]["Lectura"]):
         ret.consumptions.append(
             ConsumptionForPeriod(
                 start=start + timedelta(hours=idx),

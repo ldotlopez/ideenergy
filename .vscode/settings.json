@@ -11,5 +11,6 @@
     "./tests",
     "-p",
     "test_*.py"
-  ]
+  ],
+  "terminal.integrated.env.windows": {"PYTHONPATH": "./",}
 }

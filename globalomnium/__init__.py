@@ -73,7 +73,9 @@ __doc__ = """
     response code: 200
     response json:
     {
-
+    "result": true,
+    "error": "",
+    "redirectURL": "/VirtualOffice/Secure/action_login"
     }
 
     scenario: Invalid credentials.
@@ -89,7 +91,8 @@ __doc__ = """
     response code: 200
     response json:
     {
-    
+        "result": false,
+        "error": "Detectados varios intentos de acceso consecutivos. Por favor, vuélvalo a intentar más tarde."
     }
 
     # Retuned JSON payloads for measures (exposed keys: "valLecturaContador", "valMagnitud", "valEstado")
