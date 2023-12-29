@@ -20,7 +20,7 @@ import functools
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import aiohttp
 
@@ -100,9 +100,9 @@ class Client:
         session: aiohttp.ClientSession,
         username: str,
         password: str,
-        contract: Optional[str] = None,
-        logger: Optional[logging.Logger] = None,
-        user_session_timeout: Union[timedelta, int] = 300,
+        contract: str | None = None,
+        logger: logging.Logger | None = None,
+        user_session_timeout: timedelta | int = 300,
         auto_renew_user_session: bool = True,
     ):
         if not isinstance(user_session_timeout, timedelta):
@@ -116,7 +116,7 @@ class Client:
         self._user_session_timeout = user_session_timeout
         self._auto_renew_user_session = auto_renew_user_session
 
-        self._login_ts: Optional[datetime] = None
+        self._login_ts: datetime | None = None
 
     #
     # Some properties

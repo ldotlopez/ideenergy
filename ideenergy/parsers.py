@@ -18,7 +18,7 @@
 
 import itertools
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 from .types import (
     ConsumptionForPeriod,
@@ -31,7 +31,7 @@ from .types import (
 
 
 def parser_generic_historical_data(data, base_dt: datetime) -> dict[str, Any]:
-    def _normalize(idx: int, item: Optional[dict]) -> Optional[PeriodValue]:
+    def _normalize(idx: int, item: dict | None) -> PeriodValue | None:
         if item is None:
             return None
 

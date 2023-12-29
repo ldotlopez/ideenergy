@@ -18,6 +18,9 @@
 
 import json
 import os
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Dict, List
 
 from .client import (
     Client,
@@ -27,6 +30,15 @@ from .client import (
     InvalidData,
     RequestFailedError,
     get_session,
+)
+from .types import (
+    ConsumptionForPeriod,
+    DemandAtInstant,
+    HistoricalConsumption,
+    HistoricalGeneration,
+    HistoricalPowerDemand,
+    Measure,
+    PeriodValue,
 )
 
 
@@ -62,6 +74,13 @@ __all__ = [
     "InvalidData",
     "RequestFailedError",
     "sanitize_address",
+    "ConsumptionForPeriod",
+    "DemandAtInstant",
+    "HistoricalConsumption",
+    "HistoricalGeneration",
+    "HistoricalPowerDemand",
+    "Measure",
+    "PeriodValue",
 ]
 
 __doc__ = """

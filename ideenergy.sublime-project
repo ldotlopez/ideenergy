@@ -8,6 +8,7 @@
             "folder_exclude_patterns": [
                 "*.egg-info",
                 ".mypy_cache",
+                ".venv",
                 "__pycache__",
                 "dist",
             ],
@@ -16,6 +17,7 @@
         }
     ],
 
+    /*
     "settings": {
         "python_interpreter": "${project_path}/.venv/bin/python",
 
@@ -29,9 +31,9 @@
 
         "SublimeLinter.linters.mypy.executable": "${project_path}/.venv/bin/mypy",
         "SublimeLinter.linters.mypy.disable": false,
-        // "SublimeLinter.linters.mypy.args": ["--ignore-missing-imports"],
 
         "SublimeLinter.linters.pycodestyle.executable": "${project_path}/.venv/bin/pycodestyle",
         "SublimeLinter.linters.pycodestyle.disable": true,
     }
+    */
 }
