@@ -3,7 +3,7 @@
 
 [project]
 name = "ideenergy"
-version = "2.0.0a0"
+version = "2.0.0rc1"
 dependencies = [
     "aiohttp <4.0,>=3.8",
     "importlib-metadata; python_version >= '3.9'",
