@@ -18,7 +18,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-# requires-python = ">3.11"
+requires-python = ">3.9"
 
 [project.scripts]
 ideenergy = "ideenergy.cli:main"
@@ -26,7 +26,7 @@ ideenergy = "ideenergy.cli:main"
 [project.urls]
 Homepage = "https://github.com/ldotlopez/ideenergy"
 Issues = "https://github.com/ldotlopez/ideenergy/issues"
-Repository = " https://github.com/ldotlopez/ideenergy.git"
+Repository = "https://github.com/ldotlopez/ideenergy.git"
 
 [build-system]
 requires = [
