@@ -8,6 +8,7 @@ dependencies = [
     "aiohttp <4.0,>=3.8",
     "importlib-metadata; python_version >= '3.9'",
 ]
+readme = "README.md"
 
 [build-system]
 requires = [
@@ -26,7 +27,7 @@ ideenergy = "ideenergy.cli:main"
 packages = ["ideenergy"]
 
 [tool.black]
-target-version = ['py39']
+target-version = ['py311']
 
 [tool.isort]
 profile = "black"
