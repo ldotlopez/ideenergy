@@ -38,21 +38,21 @@ _CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/Secure/action_getSuministro/" # Not w
 _CONTRACT_SELECTION_ENDPOINT = f"{_BASE_URL}/Secure/action_setSuministroActivo/" # Not tested
 _LOGIN_ENDPOINT = f"{_BASE_URL}/action_Login/"
 _MEASURE_ENDPOINT = (
-    f"{_BASE_URL}/Secure/action_getDatosLecturaHorariaEntreFechas/"
-#    "{start:%d/%m/%Y}/"
-#    "{end:%d/%m/%Y}/"
+    f"{_BASE_URL}/Secure/action_getDatosLecturaHorariaEntreFechas"
+    "?start={start:%d/%m/%y}"
+    "&end={end:%d/%m/%y}"
 )
 
 #
 # URLs reviewed on 2023-06-22
 #
 _CONSUMPTION_PERIOD_ENDPOINT = (
-    f"{_BASE_URL}/Secure/action_getDatosLecturaHorariaEntreFechas/"
+    f"{_BASE_URL}/Secure/action_getDatosLecturaHorariaEntreFechas"
 #    f"{_BASE_URL}/action_getHistorialLecturasWmtM/"
 #    # "{start:%d-%m-%Y}/"
 #    # "{end:%d-%m-%Y}/"
-#    "{start:%d/%m/%Y}/"
-#    "{end:%d/%m/%Y}/"
+    "?start={start:%d/%m/%y}"
+    "&end={end:%d/%m/%y}"
 )
 
 
@@ -168,11 +168,11 @@ class Client:
         login_payload = "login="+ self.username +"&pass="+ self.password + "&remember=true" + "&suministro="
 
 
-        data = await self._request("POST", _LOGIN_ENDPOINT, data=login_payload) #si no funciona, cambiar el data inicial por response o similar
+        data = await self.request_json("POST", _LOGIN_ENDPOINT, data=login_payload) #si no funciona, cambiar el data inicial por response o similar
         if not isinstance(data, dict):
             raise InvalidData(data)
 
-        if data.get("result", "false") != "true":
+        if data.get("result", "false") != True:
             raise CommandError(data)
 
         self._login_ts = datetime.now()
@@ -183,17 +183,6 @@ class Client:
 
         self._logger.info(f"{self}: successful authentication")
 
-    #@auth_required
-    # async def is_icp_ready(self) -> bool:
-    #     """
-    #     {
-    #         'icp': 'trueConectado'
-    #     }
-    #     """
-    #     data = await self.request_json("POST", _ICP_STATUS_ENDPOINT)
-    #     ret = data.get("icp", "") == "trueConectado"
-    #
-    #     return ret
 
     @auth_required
     async def get_contract_details(self) -> Dict[str, Any]:
@@ -417,7 +406,7 @@ class Client:
         start_yesterday = (datetime.now() - timedelta(days=1)).strftime("%d/%m/%Y")
         payload = f"start={start_yesterday}&end={end_today}"
 
-        data = await self._request("GET", _MEASURE_ENDPOINT, data=payload) #si no funciona, cambiar el data inicial por response o similar
+        data = await self.request_json("GET", _MEASURE_ENDPOINT, data=payload) #si no funciona, cambiar el data inicial por response o similar
 
         self._logger.debug(f"Got reply, raw data: {data!r}")
 
@@ -442,12 +431,6 @@ class Client:
     ) -> HistoricalConsumption:
         return await self._get_historical_consumption(start, end)
 
-    # async def get_historical_generation(
-    #     self, start: datetime, end: datetime
-    # ) -> Dict[str, Any]:
-    #     return await self._get_historical_generic_data(
-    #         _GENERATION_PERIOD_ENDPOINT, start, end
-    #    )
 
     @auth_required # este trozo de abajo también se puede quitar???
     async def _get_historical_generic_data(
@@ -472,7 +455,7 @@ class Client:
         end = max([start, end])
         payload = f"start={start}&end={end}"
 
-        data = await self._request("GET", _CONSUMPTION_PERIOD_ENDPOINT, data=payload) #si no funciona, cambiar el data inicial por response o similar
+        data = await self.request_json("GET", _CONSUMPTION_PERIOD_ENDPOINT, data=payload) #si no funciona, cambiar el data inicial por response o similar
 
         ret = parsers.parse_historical_consumption(data)
         ret.consumptions = [
@@ -480,24 +463,6 @@ class Client:
         ]
         return ret
 
-    # @auth_required
-    # async def get_historical_power_demand_limits(self):
-    #     url = _POWER_DEMAND_LIMITS_ENDPOINT
-    #
-    #     data = await self.request_json("GET", url)
-    #     assert data.get("resultado") == "correcto"
-    #
-    #     return data
-
-    # @auth_required
-    # async def get_historical_power_demand(self):
-    #     limits = await self.get_historical_power_demand_limits()
-    #     url = _POWER_DEMAND_PERIOD_ENDPOINT.format(**limits)
-    #
-    #     data = await self.request_json("GET", url)
-    #
-    #     ret = parsers.parse_historical_power_demand_data(data)
-    #     return ret
 
     def __repr__(self):
         return (
