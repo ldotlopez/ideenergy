@@ -1,5 +1,7 @@
 # ideenergy
 
+Programmatic access to consumer energy consumption from https://www.i-de.es/ (Spanish energy distributor)
+
 
 <!-- Code and releases -->
 
@@ -9,8 +11,6 @@
 
 <!-- Sponsors -->
 <a href="https://www.buymeacoffee.com/zepolson" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 105px !important;" ></a>
-
-Programmatic access to consumer energy consumption from https://www.i-de.es/ (Spanish energy distributor)
 
 **Useful links**
 
