@@ -3,7 +3,7 @@
 
 <!-- Code and releases -->
 
-![GitHub Release (latest SemVer including pre-releases)](https://img.shields.io/github/v/release/ldotlopez/ideenergy?include_prereleases)
+![GitHub Release (latest SemVer including pre-releases)](https://img.shields.io/github/v/release/ldotlopez/ideenergy)
 [![Create release](https://github.com/ldotlopez/ideenergy/actions/workflows/release.yml/badge.svg)](https://github.com/ldotlopez/ideenergy/actions/workflows/release.yml)
 [![Upload Python package](https://github.com/ldotlopez/ideenergy/actions/workflows/publish.yml/badge.svg)](https://github.com/ldotlopez/ideenergy/actions/workflows/publish.yml)
 
