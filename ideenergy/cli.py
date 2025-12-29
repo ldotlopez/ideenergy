@@ -25,6 +25,8 @@ import pprint
 import sys
 from datetime import datetime, timedelta
 
+import dotenv
+
 from . import Client, RequestFailedError, get_credentials, get_session
 
 
@@ -45,7 +47,7 @@ def build_arg_parser():
     return parser
 
 
-async def _main():
+async def amain():
     async def get_requested_data():
         if args.list_contracts:
             contracts = await client.get_contracts()
@@ -103,7 +105,8 @@ async def _main():
 
 
 def main():
-    return asyncio.run(_main())
+    dotenv.load_dotenv()
+    return asyncio.run(amain())
 
 
 if __name__ == "__main__":

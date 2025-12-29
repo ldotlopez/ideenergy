@@ -5,20 +5,20 @@ name = "ideenergy"
 version = "2.0.0"
 dependencies = [
     "aiohttp <4.0,>=3.8",
-    "importlib-metadata; python_version >= '3.11'",
+    "dotenv>=0.9.9",
+    "importlib-metadata; python_version >= '3.13'",
 ]
 authors = [
   {name = "Luis López", email = "luis@cuarentaydos.com"},
 ]
 readme = "README.md"
+license-files = ["LICENSE"]
 description ="Programmatic access to consumer energy consumption from https://www.i-de.es/ (Spanish energy distributor)"
-license = {file = "LICENSE"}
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 
 [project.scripts]
 ideenergy = "ideenergy.cli:main"
@@ -39,7 +39,7 @@ build-backend = "setuptools.build_meta"
 universal = 1
 
 [tool.black]
-target-version = ['py311']
+target-version = ['py313']
 
 [tool.isort]
 profile = "black"
@@ -48,7 +48,14 @@ profile = "black"
 files = ["ideenergy"]
 
 [tool.pyupgrade]
-addopts = "--py311-plus"
+addopts = "--py313-plus"
 
 [tool.setuptools]
 packages = ["ideenergy"]
+
+[dependency-groups]
+dev = [
+    "ipdb>=0.13.13",
+    "ipython>=9.8.0",
+    "pre-commit>=4.5.1",
+]
