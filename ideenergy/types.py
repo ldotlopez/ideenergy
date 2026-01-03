@@ -27,6 +27,9 @@ class HistoricalConsumption:
     total: float = 0
     desglosed: dict[str, float] = field(default_factory=dict)
 
+@dataclass
+class CurrentConsumption:
+    periods: list[PeriodValue] = field(default_factory=list)
 
 @dataclass
 class HistoricalGeneration:

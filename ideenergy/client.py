@@ -26,6 +26,7 @@ import aiohttp
 
 from . import parsers
 from .types import (
+    CurrentConsumption,
     HistoricalConsumption,
     HistoricalGeneration,
     HistoricalPowerDemand,
@@ -48,7 +49,6 @@ _GENERATION_PERIOD_ENDPOINT = (
 _ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
 _LOGIN_ENDPOINT = f"{_BASE_URL}/loginNew/login"
 _MEASURE_ENDPOINT = f"{_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
-
 #
 # URLs reviewed on 2023-06-22
 #
@@ -65,6 +65,7 @@ _POWER_DEMAND_PERIOD_ENDPOINT = (
     # fecMin and fecMax are provided by _POWER_DEMAND_LIMITS_ENDPOINT
     "{fecMin}/{fecMax}"
 )
+_CONSUMPTION_CURRENT_ENDPOINT = f"{_BASE_URL}/consumoNew/obtenerConsumoEnCurso/"
 
 
 async def get_session() -> aiohttp.ClientSession:
@@ -377,6 +378,15 @@ class Client:
 
         ret = parsers.parse_historical_consumption(data)
         ret.periods = [x for x in ret.periods if x.start >= start and x.end < end]
+        return ret
+
+    @auth_required
+    async def get_current_consumption(self) -> CurrentConsumption:
+        url = _CONSUMPTION_CURRENT_ENDPOINT
+
+        data = await self.request_json("GET", url, encoding="iso-8859-1")
+        print(f"{data=}")
+        ret = parsers.parse_current_consumption(data)
         return ret
 
     async def get_historical_generation(

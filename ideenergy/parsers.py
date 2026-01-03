@@ -22,6 +22,7 @@ from typing import Any
 
 from .types import (
     ConsumptionForPeriod,
+    CurrentConsumption,
     DemandAtInstant,
     HistoricalConsumption,
     HistoricalGeneration,
@@ -82,6 +83,16 @@ def parse_historical_consumption(data) -> HistoricalConsumption:
 
     return ret
 
+def parse_current_consumption(data) -> CurrentConsumption:
+    ret = CurrentConsumption()
+    periods = ret.periods
+    onehour = timedelta(hours=1)
+    for endstr, value in zip(data["fechas"], data["consumos"]):
+        end = datetime.strptime(endstr, '%Y-%m-%d %H')
+        periods.append(
+            PeriodValue(start=end-onehour, end=end, value=value)
+        )
+    return ret
 
 def parse_historical_generation(data) -> HistoricalGeneration:
     start = datetime.strptime(data["fechaPeriodo"], "%d-%m-%Y%H:%M:%S").replace(
