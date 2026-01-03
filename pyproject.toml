@@ -39,7 +39,7 @@ build-backend = "setuptools.build_meta"
 universal = 1
 
 [tool.black]
-target-version = ['py313']
+target-version = ['py311']
 
 [tool.isort]
 profile = "black"
@@ -48,7 +48,7 @@ profile = "black"
 files = ["ideenergy"]
 
 [tool.pyupgrade]
-addopts = "--py313-plus"
+addopts = "--py311-plus"
 
 [tool.setuptools]
 packages = ["ideenergy"]

@@ -17,27 +17,34 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
 # USA.
 
-
 import argparse
 import asyncio
 import logging
+import os
 import pprint
 import sys
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
+import aiohttp
 import dotenv
 
-from . import Client, RequestFailedError, get_credentials, get_session
+from . import (  # get_credentials,
+    Client,
+    RequestFailedError,
+    UserExpiredError,
+)
 
 
 def build_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("-u", "--username", required=False)
     parser.add_argument("-p", "--password", required=False)
-    parser.add_argument("--credentials", required=False)
+    # parser.add_argument("--credentials", required=False)
+    parser.add_argument("--trace-http-requests", required=False, action="store_true")
     parser.add_argument("--retries", type=int, default=1)
-    parser.add_argument("--contract")
 
+    parser.add_argument("--contract")
     parser.add_argument("--list-contracts", action="store_true")
     parser.add_argument("--get-measure", action="store_true")
     parser.add_argument("--get-historical-consumption", action="store_true")
@@ -85,27 +92,74 @@ async def amain():
 
     parser = build_arg_parser()
     args = parser.parse_args()
-    username, password = get_credentials(args)
+    username = args.username or os.environ.get("I_DE_ENERGY_USERNAME", "")
+    password = args.password or os.environ.get("I_DE_ENERGY_PASSWORD", "")
 
     if not username or not password:
         print("Missing username or password", file=sys.stderr)
         sys.exit(1)
 
-    session = await get_session()
-    client = Client(
-        username=username, password=password, session=session, logger=logger
-    )
+    trace_config = aiohttp.TraceConfig()
+    if args.trace_http_requests:
+        trace_config.on_request_start.append(on_request_start)
+        trace_config.on_request_end.append(on_request_end)
+        trace_config.on_request_chunk_sent.append(on_request_chunk_sent)
 
-    try:
-        if data := await get_requested_data():
-            print(pprint.pformat(data))
-
-    except RequestFailedError as e:
-        print(f"Request failed: {e}", file=sys.stderr)
-        await session.close()
+    if (
+        not args.list_contracts
+        or not args.get_measure
+        or not args.get_historical_consumption
+        or not args.get_historical_generation
+        or not args.get_historical_power_demand
+    ):
+        parser.print_help()
         sys.exit(1)
 
-    await session.close()
+    async with aiohttp.ClientSession(trace_configs=[trace_config]) as session:
+        client = Client(
+            username=username, password=password, session=session, logger=logger
+        )
+
+        try:
+            if data := await get_requested_data():
+                print(pprint.pformat(data))
+
+        except RequestFailedError as e:
+            print(f"Request failed: {e}", file=sys.stderr)
+            await session.close()
+            sys.exit(1)
+
+        except UserExpiredError as e:
+            print(f"User expired, renew auth code via web: {e}", file=sys.stderr)
+            await session.close()
+            sys.exit(1)
+
+
+async def on_request_start(
+    session: aiohttp.ClientSession,
+    trace_config_ctx: SimpleNamespace,
+    params: aiohttp.TraceRequestStartParams,
+):
+    print(f"--> Sending request: {params.method} {params.url}")
+
+
+async def on_request_end(
+    session: aiohttp.ClientSession,
+    trace_config_ctx: SimpleNamespace,
+    params: aiohttp.TraceRequestStartParams,
+):
+    print(
+        f"<-- Received response: {params.response}"  # ty:ignore[unresolved-attribute]
+    )
+
+
+async def on_request_chunk_sent(
+    session: aiohttp.ClientSession,
+    context: SimpleNamespace,
+    params: aiohttp.TraceRequestStartParams,
+):
+    raw_data = params.chunk.decode("utf-8")  # ty:ignore[unresolved-attribute]
+    print(f"--> Sending chunk: {raw_data}")
 
 
 def main():

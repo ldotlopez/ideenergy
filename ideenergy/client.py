@@ -33,43 +33,43 @@ from .types import (
     Measure,
 )
 
-_BASE_URL = "https://www.i-de.es/consumidores/rest"
+_BASE_URL = "https://www.i-de.es"
+_REST_BASE_URL = f"{_BASE_URL}/consumidores/rest"
 
 #
 # URLs not confirmed since begining of the times
 #
-_CONTRACTS_ENDPOINT = f"{_BASE_URL}/cto/listaCtos/"
-_CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/detalleCto/detalle/"
-_CONTRACT_SELECTION_ENDPOINT = f"{_BASE_URL}/cto/seleccion/"
+_CONTRACTS_ENDPOINT = f"{_REST_BASE_URL}/cto/listaCtos/"
+_CONTRACT_DETAILS_ENDPOINT = f"{_REST_BASE_URL}/detalleCto/detalle/"
+_CONTRACT_SELECTION_ENDPOINT = f"{_REST_BASE_URL}/cto/seleccion/"
 _GENERATION_PERIOD_ENDPOINT = (
-    f"{_BASE_URL}/consumoNew/obtenerDatosGeneracionPeriodo/"
+    f"{_REST_BASE_URL}/consumoNew/obtenerDatosGeneracionPeriodo/"
     "fechaInicio/{start:%d-%m-%Y}00:00:00/"
     "fechaFinal/{end:%d-%m-%Y}00:00:00/"
 )
-_ICP_STATUS_ENDPOINT = f"{_BASE_URL}/rearmeICP/consultarEstado"
-_LOGIN_ENDPOINT = f"{_BASE_URL}/loginNew/login"
-_MEASURE_ENDPOINT = f"{_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
+_ICP_STATUS_ENDPOINT = f"{_REST_BASE_URL}/rearmeICP/consultarEstado"
+_LOGIN_ENDPOINT = f"{_REST_BASE_URL}/loginNew/login"
+_MEASURE_ENDPOINT = f"{_REST_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
+
 #
 # URLs reviewed on 2023-06-22
 #
 _CONSUMPTION_PERIOD_ENDPOINT = (
-    f"{_BASE_URL}/consumoNew/obtenerDatosConsumoDH/"
+    f"{_REST_BASE_URL}/consumoNew/obtenerDatosConsumoDH/"
     "{start:%d-%m-%Y}/"
     "{end:%d-%m-%Y}/"
     "horas/USU/"
 )
 
-_POWER_DEMAND_LIMITS_ENDPOINT = f"{_BASE_URL}/consumoNew/obtenerLimitesFechasPotencia/"
+_POWER_DEMAND_LIMITS_ENDPOINT = (
+    f"{_REST_BASE_URL}/consumoNew/obtenerLimitesFechasPotencia/"
+)
 _POWER_DEMAND_PERIOD_ENDPOINT = (
-    f"{_BASE_URL}/consumoNew/obtenerPotenciasMaximasRangoV2/"
+    f"{_REST_BASE_URL}/consumoNew/obtenerPotenciasMaximasRangoV2/"
     # fecMin and fecMax are provided by _POWER_DEMAND_LIMITS_ENDPOINT
     "{fecMin}/{fecMax}"
 )
 _CONSUMPTION_CURRENT_ENDPOINT = f"{_BASE_URL}/consumoNew/obtenerConsumoEnCurso/"
-
-
-async def get_session() -> aiohttp.ClientSession:
-    return aiohttp.ClientSession()
 
 
 def auth_required(fn):
@@ -95,6 +95,33 @@ class Client:
             "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15G77"
         ),
     }
+
+    # POST /consumidores/rest/loginNew/login HTTP/2
+    # Host: www.i-de.es
+    # User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:145.0) Gecko/20100101 Firefox/145.0
+    # Accept: application/json, text/plain, */*
+    # Accept-Language: es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3
+    # Accept-Encoding: gzip, deflate, br, zstd
+    # dispositivo: desktop
+    # AppVersion: v2
+    # Content-Type: application/json; charset=UTF-8
+    # Content-Length: 104
+    # Origin: https://www.i-de.es
+    # Connection: keep-alive
+    # Cookie: [redacted]
+    # Sec-Fetch-Dest: empty
+    # Sec-Fetch-Mode: cors
+    # Sec-Fetch-Site: same-origin
+    # Priority: u=0
+    # Pragma: no-cache
+    # Cache-Control: no-cache
+    # TE: trailers
+    #
+    # _HEADERS = {
+    #     "dispositivo": "desktop",
+    #     "AppVersion": "v2",
+    #     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:145.0) Gecko/20100101 Firefox/145.0",
+    # }
 
     def __init__(
         self,
@@ -200,10 +227,29 @@ class Client:
             "s",
             "",
         ]
+        # payload = [
+        #     self.username,
+        #     self.password,
+        #     None,
+        #     "Linux -",
+        #     "PC",
+        #     "Firefox 145.0",
+        #     "0",
+        #     "",
+        #     "s",
+        #     None,
+        #     None,
+        #     None,
+        # ]
 
+        await self.request_bytes("GET", _BASE_URL)
         data = await self.request_json("POST", _LOGIN_ENDPOINT, json=payload)
+
         if not isinstance(data, dict):
             raise InvalidData(data)
+
+        if data.get("success", "") == "userExpired":
+            raise UserExpiredError(data)
 
         if data.get("success", "false") != "true":
             raise CommandError(data)
@@ -471,3 +517,11 @@ class InvalidContractError(ClientError):
 
     def __str__(self):
         return f"Invalid contract code: {self.data!r}"
+
+
+class UserExpiredError(ClientError):
+    def __init__(self, data):
+        self.data = data
+
+    def __str__(self):
+        return f"User expired: {self.data!r}"
