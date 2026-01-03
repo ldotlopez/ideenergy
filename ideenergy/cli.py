@@ -43,6 +43,7 @@ def build_arg_parser():
     parser.add_argument("--get-historical-consumption", action="store_true")
     parser.add_argument("--get-historical-generation", action="store_true")
     parser.add_argument("--get-historical-power-demand", action="store_true")
+    parser.add_argument("--get-current-consumption", action="store_true")
 
     return parser
 
@@ -71,6 +72,9 @@ async def amain():
 
         if args.get_historical_power_demand:
             return await client.get_historical_power_demand()
+
+        if args.get_current_consumption:
+            return await client.get_current_consumption()
 
     logging.basicConfig(
         format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s %(message)s",
