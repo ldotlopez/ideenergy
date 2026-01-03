@@ -101,12 +101,12 @@ async def amain():
         trace_config.on_request_end.append(on_request_end)
         trace_config.on_request_chunk_sent.append(on_request_chunk_sent)
 
-    if (
-        not args.list_contracts
-        or not args.get_measure
-        or not args.get_historical_consumption
-        or not args.get_historical_generation
-        or not args.get_historical_power_demand
+    if not (
+        args.list_contracts
+        or args.get_measure
+        or args.get_historical_consumption
+        or args.get_historical_generation
+        or args.get_historical_power_demand
     ):
         parser.print_help()
         sys.exit(1)
@@ -115,7 +115,6 @@ async def amain():
         client = Client(
             username=username, password=password, session=session, logger=logger
         )
-
         try:
             if data := await get_requested_data():
                 print(pprint.pformat(data))
