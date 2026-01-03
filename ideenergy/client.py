@@ -25,48 +25,25 @@ from typing import Any
 import aiohttp
 
 from . import parsers
+from .endpoints import (
+    _BASE_URL,
+    _CONSUMPTION_PERIOD_ENDPOINT,
+    _CONTRACT_DETAILS_ENDPOINT,
+    _CONTRACT_SELECTION_ENDPOINT,
+    _CONTRACTS_ENDPOINT,
+    _GENERATION_PERIOD_ENDPOINT,
+    _ICP_STATUS_ENDPOINT,
+    _KEEP_SESSION,
+    _LOGIN_ENDPOINT,
+    _MEASURE_ENDPOINT,
+    _POWER_DEMAND_LIMITS_ENDPOINT,
+    _POWER_DEMAND_PERIOD_ENDPOINT,
+)
 from .types import (
     HistoricalConsumption,
     HistoricalGeneration,
     HistoricalPowerDemand,
     Measure,
-)
-
-_BASE_URL = "https://www.i-de.es"
-_REST_BASE_URL = f"{_BASE_URL}/consumidores/rest"
-
-#
-# URLs not confirmed since begining of the times
-#
-_CONTRACTS_ENDPOINT = f"{_REST_BASE_URL}/cto/listaCtos/"
-_CONTRACT_DETAILS_ENDPOINT = f"{_REST_BASE_URL}/detalleCto/detalle/"
-_CONTRACT_SELECTION_ENDPOINT = f"{_REST_BASE_URL}/cto/seleccion/"
-_GENERATION_PERIOD_ENDPOINT = (
-    f"{_REST_BASE_URL}/consumoNew/obtenerDatosGeneracionPeriodo/"
-    "fechaInicio/{start:%d-%m-%Y}00:00:00/"
-    "fechaFinal/{end:%d-%m-%Y}00:00:00/"
-)
-_ICP_STATUS_ENDPOINT = f"{_REST_BASE_URL}/rearmeICP/consultarEstado"
-_LOGIN_ENDPOINT = f"{_REST_BASE_URL}/loginNew/login"
-_MEASURE_ENDPOINT = f"{_REST_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
-
-#
-# URLs reviewed on 2023-06-22
-#
-_CONSUMPTION_PERIOD_ENDPOINT = (
-    f"{_REST_BASE_URL}/consumoNew/obtenerDatosConsumoDH/"
-    "{start:%d-%m-%Y}/"
-    "{end:%d-%m-%Y}/"
-    "horas/USU/"
-)
-
-_POWER_DEMAND_LIMITS_ENDPOINT = (
-    f"{_REST_BASE_URL}/consumoNew/obtenerLimitesFechasPotencia/"
-)
-_POWER_DEMAND_PERIOD_ENDPOINT = (
-    f"{_REST_BASE_URL}/consumoNew/obtenerPotenciasMaximasRangoV2/"
-    # fecMin and fecMax are provided by _POWER_DEMAND_LIMITS_ENDPOINT
-    "{fecMin}/{fecMax}"
 )
 
 
@@ -204,15 +181,6 @@ class Client:
     #
 
     async def login(self) -> None:
-        """
-        {
-            'redirect': 'informacion-del-contrato',
-            'zona': 'B',
-            'success': 'true',
-            'idioma': 'ES',
-            'uCcr': ''
-        }
-        """
         payload = [
             self.username,
             self.password,
@@ -261,11 +229,6 @@ class Client:
 
     @auth_required
     async def is_icp_ready(self) -> bool:
-        """
-        {
-            'icp': 'trueConectado'
-        }
-        """
         data = await self.request_json("POST", _ICP_STATUS_ENDPOINT)
         ret = data.get("icp", "") == "trueConectado"
 
@@ -273,66 +236,6 @@ class Client:
 
     @auth_required
     async def get_contract_details(self) -> dict[str, Any]:
-        """
-        {
-            "ape1Titular": "xxxxxx                                       ",
-            "ape2Titular": "xxxxxx                                       ",
-            "codCliente": "12345678",
-            "codContrato": 123456789.0,
-            "codPoblacion": "000000",
-            "codProvincia": "00",
-            "codPostal": "00000",
-            "codSociedad": 3,
-            "codTarifaIblda": "92T0",
-            "codTension": "09",
-            "cups": "ES0000000000000000XY",
-            "direccion": "C/ XXXXXXXXXXXXXXXXXX, 12 , 34 00000-XXXXXXXXXXXXXXXXXXXX"
-                " - XXXXXXXXX           ",
-            "dni": "12345678Y",
-            "emailFactElec": "xxxxxxxxx@xxxxx.com",
-            "esAutoconsumidor": False,
-            "esAutogenerador": False,
-            "esPeajeDirecto": False,
-            "fecAltaContrato": "2000-01-01",
-            "fecBajaContrato": 1600000000000,
-            "fecUltActua": "22.10.2021",
-            "indEstadioPS": 4,
-            "indFraElectrn": "N",
-            "nomGestorOficina": "XXXXXXXXXXXX                                      ",
-            "nomPoblacion": "XXXXXXXXXXXXXXXXXXXX                         ",
-            "nomProvincia": "XXXXXXXXX                                    ",
-            "nomTitular": "XXXXX                                        ",
-            "numCtaBancaria": "0",
-            "numTelefono": "         ",
-            "numTelefonoAdicional": "123456789",
-            "potDia": 0.0,
-            "potMaxima": 5750,
-            "presion": "1.00",
-            "puntoSuministro": "1234567.0",
-            "tipAparato": "CN",
-            "tipCualificacion": "PP",
-            "tipEstadoContrato": "AL",
-            "tipo": "A",
-            "tipPuntoMedida": None,
-            "tipSectorEne": "01",
-            "tipSisLectura": "TG",
-            "tipSuministro": None,
-            "tipUsoEnerg": "",
-            "listContador": [
-                {
-                    "fecInstalEquipo": "28-01-2011",
-                    "propiedadEquipo": "i-DE",
-                    "tipAparato": "CONTADOR TELEGESTION",
-                    "tipMarca": "ZIV",
-                    "numSerieEquipo": 12345678.0,
-                }
-            ],
-            "esTelegestionado": True,
-            "esTelegestionadoFacturado": True,
-            "esTelemedido": False,
-            "cau": None,
-        }
-        """
         data = await self.request_json("GET", _CONTRACT_DETAILS_ENDPOINT)
         if not data.get("codContrato", False):
             raise InvalidData(data)
@@ -341,28 +244,6 @@ class Client:
 
     @auth_required
     async def get_contracts(self) -> list[dict[str, Any]]:
-        """
-        {
-            'success': true,
-            'contratos': [
-                {
-                    'direccion': 'xxxxxxxxxxxxxxxxxxxxxxx',
-                    'cups': 'ES0000000000000000AB',
-                    'tipo': 'A',
-                    'tipUsoEnergiaCorto': '-',
-                    'tipUsoEnergiaLargo': '-',
-                    'estContrato': 'Alta',
-                    'codContrato': '123456789',
-                    'esTelegestionado': True,
-                    'presion': '1.00',
-                    'fecUltActua': '01.01.1970',
-                    'esTelemedido': False,
-                    'tipSisLectura': 'TG',
-                    'estadoAlta': True
-                }
-            ]
-        }
-        """
         data = await self.request_json("GET", _CONTRACTS_ENDPOINT)
         if not data.get("success", False):
             raise CommandError(data)
@@ -383,16 +264,6 @@ class Client:
 
     @auth_required
     async def get_measure(self) -> Measure:
-        """
-        {
-            "valMagnitud": "158.64",
-            "valInterruptor": "1",
-            "valEstado": "09",
-            "valLecturaContador": "43167",
-            "codSolicitudTGT": "012345678901",
-        }
-        """
-
         self._logger.debug("Requesting data to the ICP, may take up to a minute.")
         data = await self.request_json("GET", _MEASURE_ENDPOINT)
 
