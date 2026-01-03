@@ -18,9 +18,6 @@
 
 import json
 import os
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Dict, List
 
 from .client import (
     Client,
@@ -29,7 +26,7 @@ from .client import (
     InvalidContractError,
     InvalidData,
     RequestFailedError,
-    get_session,
+    UserExpiredError,
 )
 from .types import (
     ConsumptionForPeriod,
@@ -41,46 +38,45 @@ from .types import (
     PeriodValue,
 )
 
+# def get_credentials(parsedargs=None, credentials=None, environ_prefix="I_DE_ENERGY"):
+#     if parsedargs and parsedargs.username:
+#         return parsedargs.username, parsedargs.password
 
-def get_credentials(parsedargs=None, credentials=None, environ_prefix="I_DE_ENERGY"):
-    if parsedargs and parsedargs.username:
-        return parsedargs.username, parsedargs.password
+#     credentials = credentials or getattr(parsedargs, "credentials", None)
+#     if credentials:
+#         with open(credentials, encoding="utf-8") as fh:
+#             d = json.loads(fh.read())
+#         return d["username"], d["password"]
 
-    credentials = credentials or getattr(parsedargs, "credentials", None)
-    if credentials:
-        with open(credentials, encoding="utf-8") as fh:
-            d = json.loads(fh.read())
-        return d["username"], d["password"]
-
-    if environ_prefix:
-        environ_prefix = environ_prefix.upper()
-        return (
-            os.environ.get(f"{environ_prefix}_USERNAME"),
-            os.environ.get(f"{environ_prefix}_PASSWORD"),
-        )
+#     if environ_prefix:
+#         environ_prefix = environ_prefix.upper()
+#         return (
+#             os.environ.get(f"{environ_prefix}_USERNAME"),
+#             os.environ.get(f"{environ_prefix}_PASSWORD"),
+#         )
 
 
-def sanitize_address(address):
-    return " ".join([x.strip().capitalize() for x in address.split(" ") if x])
+# def sanitize_address(address):
+#     return " ".join([x.strip().capitalize() for x in address.split(" ") if x])
 
 
 __all__ = [
     "Client",
     "ClientError",
     "CommandError",
-    "get_credentials",
-    "get_session",
-    "InvalidContractError",
-    "InvalidData",
-    "RequestFailedError",
-    "sanitize_address",
     "ConsumptionForPeriod",
     "DemandAtInstant",
     "HistoricalConsumption",
     "HistoricalGeneration",
     "HistoricalPowerDemand",
+    "InvalidContractError",
+    "InvalidData",
     "Measure",
     "PeriodValue",
+    "RequestFailedError",
+    "UserExpiredError",
+    # "get_credentials",
+    # "sanitize_address",
 ]
 
 __doc__ = """
