@@ -382,10 +382,8 @@ class Client:
 
     @auth_required
     async def get_current_consumption(self) -> CurrentConsumption:
-        url = _CONSUMPTION_CURRENT_ENDPOINT
-
-        data = await self.request_json("GET", url, encoding="iso-8859-1")
-        print(f"{data=}")
+        self._logger.debug("Requesting data to the ICP, may take up to a minute.")
+        data = await self.request_json("GET", _CONSUMPTION_CURRENT_ENDPOINT)
         ret = parsers.parse_current_consumption(data)
         return ret
 
