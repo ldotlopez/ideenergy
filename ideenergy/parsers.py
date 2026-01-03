@@ -20,6 +20,7 @@ import itertools
 from datetime import datetime, timedelta
 from typing import Any
 
+from . import client
 from .types import (
     ConsumptionForPeriod,
     CurrentConsumption,
@@ -29,7 +30,6 @@ from .types import (
     HistoricalPowerDemand,
     PeriodValue,
 )
-
 
 def parser_generic_historical_data(data, base_dt: datetime) -> dict[str, Any]:
     def _normalize(idx: int, item: dict | None) -> PeriodValue | None:
@@ -87,6 +87,14 @@ def parse_current_consumption(data) -> CurrentConsumption:
     ret = CurrentConsumption()
     periods = ret.periods
     onehour = timedelta(hours=1)
+    fechas = data.get('fechas')
+    consumos = data.get('consumos')
+    if not (fechas and consumos):
+        if fechas or consumos:
+            raise client.InvalidData(data)
+        else:
+            # between 00:00 and 01:00: {'mensaje': 'No existen datos disponibles'}
+            return ret
     for endstr, value in zip(data["fechas"], data["consumos"]):
         end = datetime.strptime(endstr, '%Y-%m-%d %H')
         periods.append(
