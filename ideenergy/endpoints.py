@@ -135,9 +135,10 @@ _ICP_STATUS_ENDPOINT = f"{_REST_BASE_URL}/rearmeICP/consultarEstado"
 # }
 _MEASURE_ENDPOINT = f"{_REST_BASE_URL}/escenarioNew/obtenerMedicionOnline/24"
 
-#
+####
 # URLs reviewed on 2023-06-22
-#
+####
+
 _CONSUMPTION_PERIOD_ENDPOINT = (
     f"{_REST_BASE_URL}/consumoNew/obtenerDatosConsumoDH/"
     "{start:%d-%m-%Y}/"
@@ -159,6 +160,7 @@ _POWER_DEMAND_LIMITS_ENDPOINT = (
 ## Endpoint used to get power demand history
 # Must look something like this
 # /consumoNew/obtenerPotenciasMaximasRangoV2/01-10-202400:00:00/01-11-202500:00:00
+# /consumoNew/obtenerPotenciasMaximasRangoV2/01-03-202100:00:00/30-11-202523:00:00
 # On error:
 # {'resultado': 'error'}
 _POWER_DEMAND_PERIOD_ENDPOINT = (
