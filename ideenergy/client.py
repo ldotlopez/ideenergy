@@ -228,6 +228,13 @@ class Client:
             await self.select_contract(self._contract)
             self._logger.info(f"contract '{self._contract}' selected ")
 
+    # async def verify_is_logged(self) -> bool:
+    #     sess_info = await self.renew_session()
+    #     return bool(sess_info.get("usSes"))
+
+    async def renew_session(self) -> dict:
+        return await self.request_json("POST", _KEEP_SESSION)
+
     @auth_required
     async def is_icp_ready(self) -> bool:
         data = await self.request_json("POST", _ICP_STATUS_ENDPOINT)
