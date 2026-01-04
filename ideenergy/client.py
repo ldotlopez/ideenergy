@@ -349,6 +349,9 @@ class Client:
             return data
 
         limits = await _get_available_interval(self)
+        if limits.get("resultado") != "correcto":
+            raise CommandError(limits)
+
         url = _POWER_DEMAND_PERIOD_ENDPOINT.format(**limits)
 
         data = await self.request_json("GET", url)
