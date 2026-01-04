@@ -2,7 +2,7 @@
 
 [project]
 name = "ideenergy"
-version = "2.0.1dev0"
+version = "2.0.1dev1"
 dependencies = [
     "aiohttp <4.0,>=3.8",
     "dotenv>=0.9.9",
