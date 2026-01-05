@@ -46,6 +46,7 @@ def parser_generic_historical_data(data, base_dt: datetime) -> dict[str, Any]:
 
     g = (_normalize(idx, item) for (idx, item) in enumerate(data["y"]["data"][0]))
     historical_values = [x for x in g if x is not None]
+    historical_values = list(sorted(historical_values, key=lambda x: x.start))
 
     return {
         # "accumulated": float(data["acumulado"]),
@@ -80,6 +81,8 @@ def parse_historical_consumption(data) -> HistoricalConsumption:
                 ),
             )
         )
+
+    ret.periods = list(sorted(ret.periods, key=lambda x: x.start))
 
     return ret
 
