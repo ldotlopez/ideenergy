@@ -19,7 +19,10 @@
 import functools
 import json
 import logging
+import os
+import re
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import aiohttp
@@ -38,6 +41,7 @@ from .endpoints import (
     _MEASURE_ENDPOINT,
     _POWER_DEMAND_LIMITS_ENDPOINT,
     _POWER_DEMAND_PERIOD_ENDPOINT,
+    _REST_BASE_URL,
 )
 from .types import (
     HistoricalConsumption,
@@ -45,6 +49,15 @@ from .types import (
     HistoricalPowerDemand,
     Measure,
 )
+
+LOGGER = logging.getLogger(__name__)
+
+I_DE_ENERGY_DUMP_DIRECTORY = os.environ.get("I_DE_ENERGY_DUMP_DIRECTORY", "")
+I_DE_ENERGY_DUMP = bool(I_DE_ENERGY_DUMP_DIRECTORY)
+if I_DE_ENERGY_DUMP:
+    I_DE_ENERGY_DUMP_BASE_PATH = Path(I_DE_ENERGY_DUMP_DIRECTORY)
+else:
+    I_DE_ENERGY_DUMP_DIRECTORY = None
 
 
 def auth_required(fn):
@@ -107,7 +120,7 @@ class Client:
         logger: logging.Logger | None = None,
         user_session_timeout: timedelta | int = 300,
         auto_renew_user_session: bool = True,
-    ):
+    ) -> None:
         if not isinstance(user_session_timeout, timedelta):
             user_session_timeout = timedelta(seconds=user_session_timeout)
 
@@ -115,11 +128,20 @@ class Client:
         self._username = username
         self._password = password
         self._contract = contract
-        self._logger = logger or logging.getLogger("ideenergy")
         self._user_session_timeout = user_session_timeout
         self._auto_renew_user_session = auto_renew_user_session
 
         self._login_ts: datetime | None = None
+
+    def __str__(self) -> str:
+        return f"{self.username}" + ("/{self.contract}" if self.contract else "")
+
+    def __repr__(self) -> str:
+        return (
+            f"<ideenergy.Client "
+            f"username={self.username}, "
+            f"contract={self.contract or '(none)'}>"
+        )
 
     #
     # Some properties
@@ -132,6 +154,10 @@ class Client:
     @property
     def password(self) -> str:
         return self._password
+
+    @property
+    def contract(self) -> str | None:
+        return self._contract
 
     @property
     def is_logged(self) -> bool:
@@ -159,14 +185,23 @@ class Client:
         kwargs["headers"] = headers
 
         resp = await self._sess.request(method, url, **kwargs)
+
         if resp.status != 200:
+            LOGGER.error(f"{self}: {method} URL '{url}' failed (status={resp.status})")
             raise RequestFailedError(resp)
 
+        LOGGER.debug(f"{self}: {method} URL '{url}' success (status={resp.status})")
         return resp
 
     async def request_bytes(self, method: str, url: str, **kwargs) -> bytes:
         resp = await self._request(method, url, **kwargs)
         buff = await resp.content.read()
+
+        if I_DE_ENERGY_DUMP and url.startswith(_REST_BASE_URL):
+            dump = I_DE_ENERGY_DUMP_BASE_PATH / (slugify(url) + ".bin")
+            dump.parent.mkdir(parents=True, exist_ok=True)
+            dump.write_bytes(buff)
+
         return buff
 
     async def request_json(
@@ -212,32 +247,40 @@ class Client:
         data = await self.request_json("POST", _LOGIN_ENDPOINT, json=payload)
 
         if not isinstance(data, dict):
+            LOGGER.warning(f"{self}: auth failed, invalid data")
             raise InvalidData(data)
 
-        if data.get("success", "") == "userExpired":
-            raise UserExpiredError(data)
-
         if data.get("success", "false") != "true":
+            LOGGER.warning(f"{self}: auth failed, no success")
             raise CommandError(data)
 
+        if data.get("success", "") == "userExpired":
+            LOGGER.warning(f"{self}: auth failed, user session expired")
+            raise UserExpiredError(data)
+
         self._login_ts = datetime.now()
-        self._logger.info(f"successful authentication as '{self.username}'")
+        LOGGER.debug(f"{self}: succesfully authenticaded")
 
         if self._contract:
             await self.select_contract(self._contract)
-            self._logger.info(f"contract '{self._contract}' selected ")
 
     # async def verify_is_logged(self) -> bool:
     #     sess_info = await self.renew_session()
     #     return bool(sess_info.get("usSes"))
 
     async def renew_session(self) -> dict:
-        return await self.request_json("POST", _KEEP_SESSION)
+        ret = await self.request_json("POST", _KEEP_SESSION)
+        LOGGER.debug(f"{self}: session renewed")
+
+        return ret
 
     @auth_required
     async def is_icp_ready(self) -> bool:
         data = await self.request_json("POST", _ICP_STATUS_ENDPOINT)
-        ret = data.get("icp", "") == "trueConectado"
+        if ret := data.get("icp", "") == "trueConectado":
+            LOGGER.debug(f"{self}: ICP is ready")
+        else:
+            LOGGER.debug(f"{self}: ICP is NOT ready")
 
         return ret
 
@@ -245,48 +288,51 @@ class Client:
     async def get_contract_details(self) -> dict[str, Any]:
         data = await self.request_json("GET", _CONTRACT_DETAILS_ENDPOINT)
         if not data.get("codContrato", False):
+            LOGGER.warning(f"{self}: contract details fetch failed")
             raise InvalidData(data)
 
+        LOGGER.debug(f"{self}: contract details fetched")
         return data
 
     @auth_required
     async def get_contracts(self) -> list[dict[str, Any]]:
         data = await self.request_json("GET", _CONTRACTS_ENDPOINT)
+
         if not data.get("success", False):
+            LOGGER.warning(f"{self}: contract list fetch failed")
             raise CommandError(data)
 
-        try:
-            return data["contratos"]
-        except KeyError:
-            raise InvalidData(data)
+        LOGGER.debug(f"{self}: contract list fetched")
+        return data["contratos"]
 
     @auth_required
-    async def select_contract(self, id: str) -> None:
-        resp = await self.request_json("GET", _CONTRACT_SELECTION_ENDPOINT + id)
-        if not resp.get("success", False):
-            raise InvalidContractError(id)
+    async def select_contract(self, contract_id: str) -> None:
+        data = await self.request_json(
+            "GET", _CONTRACT_SELECTION_ENDPOINT + contract_id
+        )
+        if not data.get("success", False):
+            LOGGER.warning(f"{self}: contract select failed")
+            raise InvalidContractError(contract_id)
 
-        self._contract = id
-        self._logger.info(f"{self}: '{id}' contract selected")
+        LOGGER.debug(f"{self}: contract '{contract_id}' selected")
+        self._contract = contract_id
 
     @auth_required
     async def get_measure(self) -> Measure:
-        self._logger.debug("Requesting data to the ICP, may take up to a minute.")
+        LOGGER.info(f"{self}: requesting data to the ICP, may take up to a minute.")
         data = await self.request_json("GET", _MEASURE_ENDPOINT)
 
-        self._logger.debug(f"Got reply, raw data: {data!r}")
+        if not data.get("codSolicitudTGT"):
+            LOGGER.warning(f"{self}: measure request failed")
+            raise CommandError(data)
 
-        try:
-            measure = Measure(
-                accumulate=int(data["valLecturaContador"]),
-                instant=float(data["valMagnitud"]),
-            )
+        ret = Measure(
+            accumulate=int(data["valLecturaContador"]),
+            instant=float(data["valMagnitud"]),
+        )
+        LOGGER.debug(f"{self}: measure fetched succesfully")
 
-        except (KeyError, ValueError) as e:
-            raise InvalidData(data) from e
-
-        self._logger.info(f"{self}: ICP measure reading successful")
-        return measure
+        return ret
 
     @auth_required
     async def get_historical_consumption(
@@ -300,6 +346,9 @@ class Client:
 
         ret = parsers.parse_historical_consumption(data)
         ret.periods = [x for x in ret.periods if x.start >= start and x.end < end]
+
+        LOGGER.debug(f"{self}: historical consumption fetched succesfully")
+
         return ret
 
     async def get_historical_generation(
@@ -311,6 +360,8 @@ class Client:
 
         data = await self.request_json("GET", url, encoding="iso-8859-1")
         ret = parsers.parse_historical_generation(data)
+
+        LOGGER.debug(f"{self}: historical generation fetched succesfully")
 
         return ret
 
@@ -345,14 +396,12 @@ class Client:
             raise CommandError(limits)
 
         url = _POWER_DEMAND_PERIOD_ENDPOINT.format(**limits)
-
         data = await self.request_json("GET", url)
-
         ret = parsers.parse_historical_power_demand_data(data)
-        return ret
 
-    def __repr__(self):
-        return f"<ideenergy.Client username={self.username}, contract={self._contract}>"
+        LOGGER.debug(f"{self}: historical power demand fetched succesfully")
+
+        return ret
 
 
 class ClientError(Exception):
@@ -364,7 +413,10 @@ class RequestFailedError(ClientError):
         self.response = response
 
     def __str__(self):
-        return f"Invalid response: {self.response.status} - {self.response.reason}"
+        return (
+            f"Invalid response for '{self.response.request.url}': "
+            f"{self.response.status} - {self.response.reason}"
+        )
 
 
 class CommandError(ClientError):
@@ -397,3 +449,7 @@ class UserExpiredError(ClientError):
 
     def __str__(self):
         return f"User expired: {self.data!r}"
+
+
+def slugify(value: str) -> str:
+    return re.sub(r"[^a-z0-9_]", "_", value.lower())
