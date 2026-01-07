@@ -422,7 +422,7 @@ class RequestFailedError(ClientError):
 
     def __str__(self):
         return (
-            f"Invalid response for '{self.response.request.url}': "
+            f"Invalid response for '{self.response.url}': "
             f"{self.response.status} - {self.response.reason}"
         )
 
