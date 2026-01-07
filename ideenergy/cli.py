@@ -111,6 +111,7 @@ async def amain():
         or args.get_historical_consumption
         or args.get_historical_generation
         or args.get_historical_power_demand
+        or args.get_current_consumption
     ):
         parser.print_help()
         sys.exit(1)
