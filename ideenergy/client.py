@@ -30,6 +30,7 @@ import aiohttp
 from . import parsers
 from .endpoints import (
     _BASE_URL,
+    _CONSUMPTION_CURRENT_ENDPOINT,
     _CONSUMPTION_PERIOD_ENDPOINT,
     _CONTRACT_DETAILS_ENDPOINT,
     _CONTRACT_SELECTION_ENDPOINT,
