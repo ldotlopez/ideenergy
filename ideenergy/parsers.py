@@ -23,7 +23,7 @@ from typing import Any
 from . import client
 from .types import (
     ConsumptionForPeriod,
-    CurrentConsumption,
+    InProgressConsumption,
     DemandAtInstant,
     HistoricalConsumption,
     HistoricalGeneration,
@@ -86,8 +86,8 @@ def parse_historical_consumption(data) -> HistoricalConsumption:
 
     return ret
 
-def parse_current_consumption(data) -> CurrentConsumption:
-    ret = CurrentConsumption()
+def parse_in_progress_consumption(data) -> InProgressConsumption:
+    ret = InProgressConsumption()
     periods = ret.periods
     onehour = timedelta(hours=1)
     fechas = data.get('fechas')

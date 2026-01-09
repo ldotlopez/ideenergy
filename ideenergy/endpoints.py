@@ -152,7 +152,7 @@ _CONSUMPTION_PERIOD_ENDPOINT = (
 #   "generacion": [ 0, 0, 0 ],
 #   "fechas": [ "2025-08-11 01", "2025-08-11 02", "2025-08-11 03" ]
 # }
-_CONSUMPTION_CURRENT_ENDPOINT = f"{_REST_BASE_URL}/consumoNew/obtenerConsumoEnCurso/"
+_CONSUMPTION_IN_PROGRESS_ENDPOINT = f"{_REST_BASE_URL}/consumoNew/obtenerConsumoEnCurso/"
 
 ## Endpoint used to get limits on the power demand query
 # {
