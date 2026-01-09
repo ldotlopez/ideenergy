@@ -30,6 +30,7 @@ import aiohttp
 from . import parsers
 from .endpoints import (
     _BASE_URL,
+    _CONSUMPTION_IN_PROGRESS_ENDPOINT,
     _CONSUMPTION_PERIOD_ENDPOINT,
     _CONTRACT_DETAILS_ENDPOINT,
     _CONTRACT_SELECTION_ENDPOINT,
@@ -44,6 +45,7 @@ from .endpoints import (
     _REST_BASE_URL,
 )
 from .types import (
+    InProgressConsumption,
     HistoricalConsumption,
     HistoricalGeneration,
     HistoricalPowerDemand,
@@ -351,6 +353,13 @@ class Client:
 
         return ret
 
+    @auth_required
+    async def get_in_progress_consumption(self) -> InProgressConsumption:
+        LOGGER.info(f"{self}: requesting data to the ICP, may take up to a minute.")
+        data = await self.request_json("GET", _CONSUMPTION_IN_PROGRESS_ENDPOINT)
+        ret = parsers.parse_in_progress_consumption(data)
+        return ret
+
     async def get_historical_generation(
         self, start: datetime, end: datetime
     ) -> HistoricalGeneration:
@@ -414,7 +423,7 @@ class RequestFailedError(ClientError):
 
     def __str__(self):
         return (
-            f"Invalid response for '{self.response.request.url}': "
+            f"Invalid response for '{self.response.url}': "
             f"{self.response.status} - {self.response.reason}"
         )
 
