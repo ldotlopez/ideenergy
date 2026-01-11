@@ -40,7 +40,7 @@ def build_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("-u", "--username", required=False)
     parser.add_argument("-p", "--password", required=False)
-    # parser.add_argument("--credentials", required=False)
+    parser.add_argument("--configfile", required=False)
     parser.add_argument("--trace-http-requests", required=False, action="store_true")
     parser.add_argument("--retries", type=int, default=1)
 
@@ -104,8 +104,10 @@ async def amain():
 
     parser = build_arg_parser()
     args = parser.parse_args()
-    username = args.username or os.environ.get("I_DE_ENERGY_USERNAME", "")
-    password = args.password or os.environ.get("I_DE_ENERGY_PASSWORD", "")
+
+    conf = dotenv.dotenv_values(args.configfile)
+    username = args.username or conf.get("I_DE_ENERGY_USERNAME", "")
+    password = args.password or conf.get("I_DE_ENERGY_PASSWORD", "")
 
     if not username or not password:
         print("Missing username or password", file=sys.stderr)
@@ -175,7 +177,6 @@ async def on_request_chunk_sent(
 
 
 def main():
-    dotenv.load_dotenv()
     return asyncio.run(amain())
 
 
