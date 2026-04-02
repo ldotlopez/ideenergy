@@ -360,6 +360,7 @@ class Client:
         ret = parsers.parse_in_progress_consumption(data)
         return ret
 
+    @auth_required
     async def get_historical_generation(
         self, start: datetime, end: datetime
     ) -> HistoricalGeneration:
