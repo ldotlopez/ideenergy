@@ -136,7 +136,7 @@ class Client:
         self._login_ts: datetime | None = None
 
     def __str__(self) -> str:
-        return f"{self.username}" + ("/{self.contract}" if self.contract else "")
+        return f"{self.username}" + (f"/{self.contract}" if self.contract else "")
 
     def __repr__(self) -> str:
         return (
@@ -360,6 +360,7 @@ class Client:
         ret = parsers.parse_in_progress_consumption(data)
         return ret
 
+    @auth_required
     async def get_historical_generation(
         self, start: datetime, end: datetime
     ) -> HistoricalGeneration:
