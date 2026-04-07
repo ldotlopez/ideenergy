@@ -52,6 +52,9 @@ def build_arg_parser():
     parser.add_argument("--get-historical-power-demand", action="store_true")
     parser.add_argument("--get-in-progress-consumption", action="store_true")
 
+    parser.add_argument("--start", type=datetime.fromisoformat)
+    parser.add_argument("--end", type=datetime.fromisoformat)
+
     return parser
 
 
@@ -68,8 +71,17 @@ async def amain():
         if args.get_measure:
             return await client.get_measure()
 
-        end = datetime.now().replace(hour=0, minute=0, second=0)
-        start = end - timedelta(days=7)
+        now_day = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        seven_days = timedelta(days=7)
+        start = args.start
+        end = args.end
+        if not end:
+            if start:
+                end = min(now_day, start + seven_days)
+            else:
+                end = now_day
+        if not start:
+            start = end - seven_days
 
         if args.get_historical_consumption:
             return await client.get_historical_consumption(start, end)
