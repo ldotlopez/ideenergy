@@ -45,10 +45,10 @@ from .endpoints import (
     _REST_BASE_URL,
 )
 from .types import (
-    InProgressConsumption,
     HistoricalConsumption,
     HistoricalGeneration,
     HistoricalPowerDemand,
+    InProgressConsumption,
     Measure,
 )
 
@@ -136,7 +136,7 @@ class Client:
         self._login_ts: datetime | None = None
 
     def __str__(self) -> str:
-        return f"{self.username}" + ("/{self.contract}" if self.contract else "")
+        return f"{self.username}" + (f"/{self.contract}" if self.contract else "")
 
     def __repr__(self) -> str:
         return (
