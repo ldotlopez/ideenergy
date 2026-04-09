@@ -404,8 +404,15 @@ class Client:
         if limits.get("resultado") != "correcto":
             raise CommandError(limits)
 
+        # range can't be wider than a year
+        limits["fecMin"] = (
+            datetime.strptime(limits["fecMax"], "%d-%m-%Y%H:%M:%S")
+            - timedelta(days=365)
+        ).strftime("%d-%m-%Y%H:%M:%S")
+
         url = _POWER_DEMAND_PERIOD_ENDPOINT.format(**limits)
         data = await self.request_json("GET", url)
+
         ret = parsers.parse_historical_power_demand_data(data)
 
         LOGGER.debug(f"{self}: historical power demand fetched succesfully")
