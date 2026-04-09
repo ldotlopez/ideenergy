@@ -23,6 +23,7 @@ import logging
 import os
 import pprint
 import sys
+import time
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
@@ -50,7 +51,44 @@ def build_arg_parser():
     parser.add_argument("--start", type=datetime.fromisoformat)
     parser.add_argument("--end", type=datetime.fromisoformat)
 
+    parser.add_argument(
+        "--check-auth-validity",
+        action="store_true",
+        help="Login and periodically verify how long the auth remains valid",
+    )
+
     return parser
+
+
+async def probe_auth_validity(client, logger, sleep=asyncio.sleep) -> int:
+    try:
+        await client.login()
+    except Exception as exc:
+        logger.exception(f"{client}: initial auth check failed: {exc}")
+        return 1
+
+    def wait_g() -> int:
+        yield from (0, 5, 10, 20, 30)
+        while True:
+            yield 30
+
+    last_checkpoint = 0
+    start = time.monotonic()
+    for wait_minutes in wait_g():
+        checkpoint = round((time.monotonic() - start) / 60)
+        logger.info(f"{client}: waiting {wait_minutes} minutes")
+        await sleep(wait_minutes * 60)
+
+        try:
+            await client.get_historical_consumption()
+        except Exception as exc:
+            logger.exception(f"{client}: auth failed at {checkpoint} minutes")
+            return 1
+
+        logger.info(f"{client}: auth valid at {checkpoint} minutes")
+        last_checkpoint = checkpoint
+
+    return 0
 
 
 async def amain():
@@ -104,7 +142,7 @@ async def amain():
 
     if not username or not password:
         print("Missing username or password", file=sys.stderr)
-        sys.exit(1)
+        return 1
 
     trace_config = aiohttp.TraceConfig()
     if args.trace_http_requests:
@@ -119,27 +157,38 @@ async def amain():
         or args.get_historical_generation
         or args.get_historical_power_demand
         or args.get_in_progress_consumption
+        or args.check_auth_validity
     ):
         parser.print_help()
-        sys.exit(1)
+        return 1
 
     async with aiohttp.ClientSession(trace_configs=[trace_config]) as session:
         client = Client(
-            username=username, password=password, session=session, logger=logger
+            username=username,
+            password=password,
+            session=session,
+            logger=logger,
+            auto_renew_user_session=not args.check_auth_validity,
         )
+
+        if args.check_auth_validity:
+            return await probe_auth_validity(client, logger)
+
         try:
             if data := await get_requested_data():
                 print(pprint.pformat(data))
+                return 0
+            else:
+                print(f"Got empty response", file=sys.stderr)
+                return 1
 
         except RequestFailedError as e:
             print(f"Request failed: {e}", file=sys.stderr)
-            await session.close()
-            sys.exit(1)
+            return 1
 
         except UserExpiredError as e:
             print(f"User expired, renew auth code via web: {e}", file=sys.stderr)
-            await session.close()
-            sys.exit(1)
+            return 1
 
 
 async def on_request_start(
