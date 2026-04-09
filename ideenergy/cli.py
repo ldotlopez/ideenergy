@@ -29,11 +29,7 @@ from types import SimpleNamespace
 import aiohttp
 import dotenv
 
-from . import (  # get_credentials,
-    Client,
-    RequestFailedError,
-    UserExpiredError,
-)
+from . import Client, RequestFailedError, UserExpiredError
 
 
 def build_arg_parser():

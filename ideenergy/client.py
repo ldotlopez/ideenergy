@@ -249,15 +249,15 @@ class Client:
         data = await self.request_json("POST", _LOGIN_ENDPOINT, json=payload)
 
         if not isinstance(data, dict):
-            LOGGER.warning(f"{self}: auth failed, invalid data")
+            LOGGER.error(f"{self}: auth failed, invalid data")
             raise InvalidData(data)
 
         if data.get("success", "false") != "true":
-            LOGGER.warning(f"{self}: auth failed, no success")
+            LOGGER.error(f"{self}: auth failed, no success")
             raise CommandError(data)
 
         if data.get("success", "") == "userExpired":
-            LOGGER.warning(f"{self}: auth failed, user session expired")
+            LOGGER.error(f"{self}: auth failed, user session expired")
             raise UserExpiredError(data)
 
         self._login_ts = datetime.now()
@@ -290,7 +290,7 @@ class Client:
     async def get_contract_details(self) -> dict[str, Any]:
         data = await self.request_json("GET", _CONTRACT_DETAILS_ENDPOINT)
         if not data.get("codContrato", False):
-            LOGGER.warning(f"{self}: contract details fetch failed")
+            LOGGER.error(f"{self}: contract details fetch failed")
             raise InvalidData(data)
 
         LOGGER.debug(f"{self}: contract details fetched")
@@ -301,7 +301,7 @@ class Client:
         data = await self.request_json("GET", _CONTRACTS_ENDPOINT)
 
         if not data.get("success", False):
-            LOGGER.warning(f"{self}: contract list fetch failed")
+            LOGGER.error(f"{self}: contract list fetch failed")
             raise CommandError(data)
 
         LOGGER.debug(f"{self}: contract list fetched")
@@ -313,7 +313,7 @@ class Client:
             "GET", _CONTRACT_SELECTION_ENDPOINT + contract_id
         )
         if not data.get("success", False):
-            LOGGER.warning(f"{self}: contract select failed")
+            LOGGER.error(f"{self}: contract select failed")
             raise InvalidContractError(contract_id)
 
         LOGGER.debug(f"{self}: contract '{contract_id}' selected")
@@ -325,7 +325,7 @@ class Client:
         data = await self.request_json("GET", _MEASURE_ENDPOINT)
 
         if not data.get("codSolicitudTGT"):
-            LOGGER.warning(f"{self}: measure request failed")
+            LOGGER.error(f"{self}: measure request failed")
             raise CommandError(data)
 
         ret = Measure(

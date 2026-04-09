@@ -186,6 +186,8 @@ class MockClient(Client):
     async def get_historical_consumption(
         self, start: datetime, end: datetime
     ) -> HistoricalConsumption:
+        start = start.replace(minute=0, second=0)
+        end = end.replace(minute=0, second=0)
 
         with preseed_random((start, end)) as rand:
             periods = [
