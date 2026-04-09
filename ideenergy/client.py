@@ -338,8 +338,11 @@ class Client:
 
     @auth_required
     async def get_historical_consumption(
-        self, start: datetime, end: datetime
+        self, start: datetime | None = None, end: datetime | None = None
     ) -> HistoricalConsumption:
+        end = end or datetime.now()
+        start = start or end - timedelta(days=7)
+
         start = min([start, end])
         end = max([start, end])
         url = _CONSUMPTION_PERIOD_ENDPOINT.format(start=start, end=end)
@@ -361,8 +364,11 @@ class Client:
         return ret
 
     async def get_historical_generation(
-        self, start: datetime, end: datetime
+        self, start: datetime | None = None, end: datetime | None = None
     ) -> HistoricalGeneration:
+        end = end or datetime.now()
+        start = start or end - timedelta(days=7)
+
         start = min([start, end])
         end = max([start, end])
         url = _GENERATION_PERIOD_ENDPOINT.format(start=start, end=end)
