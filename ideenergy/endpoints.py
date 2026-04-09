@@ -1,3 +1,21 @@
+# Copyright (C) 2021-2026 Luis López <luis@cuarentaydos.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+# USA.
+
+
 _BASE_URL = "https://www.i-de.es"
 _REST_BASE_URL = f"{_BASE_URL}/consumidores/rest"
 
@@ -152,7 +170,9 @@ _CONSUMPTION_PERIOD_ENDPOINT = (
 #   "generacion": [ 0, 0, 0 ],
 #   "fechas": [ "2025-08-11 01", "2025-08-11 02", "2025-08-11 03" ]
 # }
-_CONSUMPTION_IN_PROGRESS_ENDPOINT = f"{_REST_BASE_URL}/consumoNew/obtenerConsumoEnCurso/"
+_CONSUMPTION_IN_PROGRESS_ENDPOINT = (
+    f"{_REST_BASE_URL}/consumoNew/obtenerConsumoEnCurso/"
+)
 
 ## Endpoint used to get limits on the power demand query
 # {

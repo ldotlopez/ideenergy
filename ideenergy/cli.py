@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2021-2022 Luis López <luis@cuarentaydos.com>
+# Copyright (C) 2021-2026 Luis López <luis@cuarentaydos.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -47,7 +47,6 @@ def build_arg_parser():
     parser.add_argument("--get-historical-generation", action="store_true")
     parser.add_argument("--get-historical-power-demand", action="store_true")
     parser.add_argument("--get-in-progress-consumption", action="store_true")
-
     parser.add_argument("--start", type=datetime.fromisoformat)
     parser.add_argument("--end", type=datetime.fromisoformat)
 
