@@ -24,6 +24,7 @@ import os
 import pprint
 import sys
 import time
+from collections.abc import Generator
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
@@ -67,12 +68,11 @@ async def probe_auth_validity(client, logger, sleep=asyncio.sleep) -> int:
         logger.exception(f"{client}: initial auth check failed: {exc}")
         return 1
 
-    def wait_g() -> int:
+    def wait_g() -> Generator[int]:
         yield from (0, 5, 10, 20, 30)
         while True:
             yield 30
 
-    last_checkpoint = 0
     start = time.monotonic()
     for wait_minutes in wait_g():
         checkpoint = round((time.monotonic() - start) / 60)
@@ -81,12 +81,11 @@ async def probe_auth_validity(client, logger, sleep=asyncio.sleep) -> int:
 
         try:
             await client.get_historical_consumption()
-        except Exception as exc:
-            logger.exception(f"{client}: auth failed at {checkpoint} minutes")
+        except Exception:
+            logger.exception(f"{client}: auth failed after {checkpoint} minutes")
             return 1
 
-        logger.info(f"{client}: auth valid at {checkpoint} minutes")
-        last_checkpoint = checkpoint
+        logger.info(f"{client}: auth valid after {checkpoint} minutes")
 
     return 0
 
@@ -168,7 +167,7 @@ async def amain():
             password=password,
             session=session,
             logger=logger,
-            auto_renew_user_session=not args.check_auth_validity,
+            session_auto_refresh=not args.check_auth_validity,
         )
 
         if args.check_auth_validity:
@@ -179,7 +178,7 @@ async def amain():
                 print(pprint.pformat(data))
                 return 0
             else:
-                print(f"Got empty response", file=sys.stderr)
+                print("Got empty response", file=sys.stderr)
                 return 1
 
         except RequestFailedError as e:

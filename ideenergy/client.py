@@ -15,15 +15,17 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
 # USA.
 
+from __future__ import annotations
 
 import functools
 import json
 import logging
 import os
 import re
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Concatenate, ParamSpec, TypeVar
 
 import aiohttp
 
@@ -62,12 +64,23 @@ else:
     I_DE_ENERGY_DUMP_DIRECTORY = None
 
 
-def auth_required(fn):
+SESSION_TIMEOUT = 900
+SESSION_AUTO_REFRESH = True
+
+# Define TypeVars to preserve the signature and return type
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def auth_required(
+    fn: Callable[Concatenate[Client, P], Awaitable[R]],
+) -> Callable[Concatenate[Client, P], Awaitable[R]]:
     @functools.wraps(fn)
-    async def _wrap(client, *args, **kwargs):
-        if client._auto_renew_user_session is True and client.is_logged is False:
+    async def _wrap(client: Client, *args, **kwargs):
+        if client._session_auto_refresh is True and client.is_logged is False:
             await client.login()
 
+        # await client.renew_session()
         return await fn(client, *args, **kwargs)
 
     return _wrap
@@ -120,18 +133,18 @@ class Client:
         password: str,
         contract: str | None = None,
         logger: logging.Logger | None = None,
-        user_session_timeout: timedelta | int = 300,
-        auto_renew_user_session: bool = True,
+        session_timeout: timedelta | int = SESSION_TIMEOUT,
+        session_auto_refresh: bool = SESSION_AUTO_REFRESH,
     ) -> None:
-        if not isinstance(user_session_timeout, timedelta):
-            user_session_timeout = timedelta(seconds=user_session_timeout)
+        if not isinstance(session_timeout, timedelta):
+            session_timeout = timedelta(seconds=session_timeout)
 
         self._sess = session
         self._username = username
         self._password = password
         self._contract = contract
-        self._user_session_timeout = user_session_timeout
-        self._auto_renew_user_session = auto_renew_user_session
+        self._session_timeout = timedelta(session_timeout.total_seconds() * 0.9)
+        self._session_auto_refresh = session_auto_refresh
 
         self._login_ts: datetime | None = None
 
@@ -167,15 +180,15 @@ class Client:
             return False
 
         delta = datetime.now() - self._login_ts
-        return delta < self.user_session_timeout
+        return delta < self.session_timeout
 
     @property
-    def user_session_timeout(self) -> timedelta:
-        return self._user_session_timeout
+    def session_timeout(self) -> timedelta:
+        return self._session_timeout
 
     @property
-    def auto_renew_user_session(self) -> bool:
-        return self._auto_renew_user_session
+    def session_auto_refresh(self) -> bool:
+        return self._session_auto_refresh
 
     #
     # Requests
