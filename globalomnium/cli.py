@@ -21,6 +21,7 @@
 
 import argparse
 import asyncio
+import json
 import logging
 import pprint
 import sys
@@ -38,6 +39,9 @@ def build_arg_parser():
     parser.add_argument("--contract")
 
     parser.add_argument("--list-contracts", action="store_true")
+    parser.add_argument("--list-localities", action="store_true")
+    parser.add_argument("--search-localities", metavar="QUERY")
+    parser.add_argument("--list-urls", action="store_true")
     parser.add_argument("--get-measure", action="store_true")
     parser.add_argument("--get-historical-consumption", action="store_true")
     # parser.add_argument("--get-historical-generation", action="store_true")
@@ -50,7 +54,6 @@ async def main():
     async def _main():
         if args.list_contracts:
             contracts = await client.get_contracts()
-            contracts = {x["referencia"]: x for x in contracts} #debe buscar referencia? no, creo que es el código largo que va cambiando
             return contracts
 
         if args.contract:
@@ -80,6 +83,26 @@ async def main():
 
     parser = build_arg_parser()
     args = parser.parse_args()
+
+    # Handle non-auth commands first
+    if args.list_localities or args.search_localities or args.list_urls:
+        session = await get_session()
+        client = Client(
+            username="dummy", password="dummy", session=session, 
+            base_url=None, logger=logger
+        )
+        
+        if args.list_localities:
+            res = await client.get_locations("")
+        elif args.search_localities:
+            res = await client.get_locations(args.search_localities)
+        elif args.list_urls:
+            res = await client.get_base_urls()
+        
+        await session.close()
+        print(pprint.pformat(res))
+        return
+
     username, password = get_credentials(args)
 
     if not username or not password:

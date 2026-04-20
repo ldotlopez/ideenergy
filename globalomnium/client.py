@@ -6,86 +6,54 @@
 # modify it under the terms of the GNU General Public License
 # as published by the Free Software Foundation; either version 2
 # of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
-# USA.
-
 
 import dataclasses
 import functools
 import json
 import logging
-import locale
+import os
+import re
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Final
 
 import aiohttp
 
 from . import parsers
 from .go_types import HistoricalConsumption
 
-#_BASE_URL = "https://www.aguasdevalencia.es/VirtualOffice"
-_BASE_URL = "https://www.globalomnium.com/VirtualOffice"
-
-_CONTRACTS_ENDPOINT = f"{_BASE_URL}/Secure/action_getSuministros/"
-_CONTRACT_DETAILS_ENDPOINT = f"{_BASE_URL}/Secure/action_getSuministro/" # Not working at the moment
-_CONTRACT_SELECTION_ENDPOINT = f"{_BASE_URL}/Secure/action_setSuministroActivo/" # Not tested
-_LOGIN_ENDPOINT = f"{_BASE_URL}/action_Login/"
-_MEASURE_ENDPOINT = (
-    f"{_BASE_URL}/Secure/action_getDatosLecturaHorariaEntreFechas"
-    "?start={start:%d/%m/%y}"
-    "&end={end:%d/%m/%y}"
-)
-
-#
-# URLs reviewed on 2024-05-16
-#
-_CONSUMPTION_PERIOD_ENDPOINT = (
-    f"{_BASE_URL}/Secure/action_getDatosLecturaHorariaEntreFechas"
-#    f"{_BASE_URL}/action_getHistorialLecturasWmtM/"
-#    # "{start:%d-%m-%Y}/"
-#    # "{end:%d-%m-%Y}/"
-    "?start={start:%d/%m/%y}"
-    "&end={end:%d/%m/%y}"
-)
-
-
-async def get_session() -> aiohttp.ClientSession:
-    return aiohttp.ClientSession()
-
-
-def auth_required(fn):
-    @functools.wraps(fn)
-    async def _wrap(client, *args, **kwargs):
-        if client._auto_renew_user_session is True and client.is_logged is False:
-            await client.login()
-
-        return await fn(client, *args, **kwargs)
-
-    return _wrap
-
+# Standard endpoints for all Global Omnium entities
+_PATH_CONTRACTS = "/Secure/action_getSuministrosAsociados"
+_PATH_BILLING_CANDIDATES = "/Secure/action_getSuministrosCandidatosFacturaE"
+_PATH_MANAGEMENT_HISTORY = "/Secure/action_getHistorialGestiones"
+_PATH_CONTRACT_DETAILS = "/Secure/action_getSuministro/"
+_PATH_CONTRACT_SELECTION = "/Secure/action_setSuministroActivo/"
+_PATH_LOGIN = "/action_Login/"
+_PATH_MEASURE = "/Secure/action_getDatosLecturaHorariaEntreFechas"
+_PATH_CONSUMPTION_PERIOD = "/Secure/action_getDatosLecturaHorariaEntreFechas"
+_LOGIN_ENDPOINT = "/action_Login/"
+_LOCATIONS_ENDPOINT = "https://www.globalomnium.com/Direcciones/DameMunicipiosWebs"
 
 @dataclasses.dataclass
 class Measure:
-    accumulate: int
+    accumulate: float
     instant: float
 
-    def asdict(self) -> Dict[str, Union[int, float]]:
+    def asdict(self) -> Dict[str, float]:
         return dataclasses.asdict(self)
 
+
+def auth_required(func):
+    @functools.wraps(func)
+    async def wrapper(self, *args, **kwargs):
+        if not self.is_logged:
+            await self.login()
+        return await func(self, *args, **kwargs)
+    return wrapper
 
 class Client:
     _HEADERS = {
         "Accept": "*/*",
         "User-Agent": "py-globalomnium/2023.12.1",
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
     }
 
     def __init__(
@@ -93,6 +61,7 @@ class Client:
         session: aiohttp.ClientSession,
         username: str,
         password: str,
+        base_url: str,
         contract: Optional[str] = None,
         logger: Optional[logging.Logger] = None,
         user_session_timeout: Union[timedelta, int] = 300,
@@ -108,8 +77,94 @@ class Client:
         self._logger = logger or logging.getLogger("globalomnium")
         self._user_session_timeout = user_session_timeout
         self._auto_renew_user_session = auto_renew_user_session
+        self.base_url = base_url
 
         self._login_ts: Optional[datetime] = None
+        
+        # Base URLs resolution
+        self._base_urls: List[str] = []
+        self._load_base_urls()
+        self._localities: Dict[str, str] = {}
+        self._load_localities_dump()
+
+    def _load_base_urls(self) -> None:
+        try:
+            base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            urls_path = os.path.join(base_path, "base_urls.json")
+            if os.path.exists(urls_path):
+                with open(urls_path, "r", encoding="utf-8") as f:
+                    self._base_urls = json.load(f)
+                self._logger.info(f"Loaded {len(self._base_urls)} base URLs from dump")
+            else:
+                self._logger.warning(f"Base URLs dump not found at {urls_path}")
+                print(f"DEBUG: Base URLs dump NOT found at {urls_path}")
+        except Exception as e:
+            self._logger.error(f"Error loading base URLs dump: {e}")
+            print(f"DEBUG: Error loading base URLs dump: {e}")
+
+    def _load_localities_dump(self) -> None:
+        try:
+            base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            dump_path = os.path.join(base_path, "localities_dump.json")
+            if os.path.exists(dump_path):
+                with open(dump_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        self._localities = {item["text"].upper(): item["url"] for item in data if "text" in item and "url" in item}
+                    elif isinstance(data, dict):
+                        self._localities = data
+                    else:
+                        self._localities = {}
+                self._logger.info(f"Loaded {len(self._localities)} localities from dump")
+            else:
+                self._logger.warning(f"Localities dump not found at {dump_path}")
+                print(f"DEBUG: Localities dump NOT found at {dump_path}")
+        except Exception as e:
+            self._logger.error(f"Error loading localities dump: {e}")
+            print(f"DEBUG: Error loading localities dump: {e}")
+
+    @property
+    def url_login(self) -> str:
+        return f"{self.base_url}{_PATH_LOGIN}"
+
+    @property
+    def url_contracts(self) -> str:
+        return f"{self.base_url}{_PATH_CONTRACTS}"
+
+    @property
+    def url_billing_candidates(self) -> str:
+        return f"{self.base_url}{_PATH_BILLING_CANDIDATES}"
+
+    @property
+    def url_management_history(self) -> str:
+        return f"{self.base_url}{_PATH_MANAGEMENT_HISTORY}"
+
+    @property
+    def url_contract_details(self) -> str:
+        return f"{self.base_url}{_PATH_CONTRACT_DETAILS}"
+
+    @property
+    def url_contract_selection(self) -> str:
+        return f"{self.base_url}{_PATH_CONTRACT_SELECTION}"
+
+    @property
+    def url_measure(self) -> str:
+        return f"{self.base_url}{_PATH_MEASURE}"
+
+    @property
+    def url_consumption(self) -> str:
+        return f"{self.base_url}{_PATH_CONSUMPTION_PERIOD}"
+
+    @property
+    def user_session_timeout(self) -> timedelta:
+        return self._user_session_timeout
+
+    @property
+    def is_logged(self) -> bool:
+        if not self._login_ts:
+            return False
+        delta = datetime.now() - self._login_ts
+        return delta < self.user_session_timeout
 
     @property
     def username(self) -> str:
@@ -119,408 +174,177 @@ class Client:
     def password(self) -> str:
         return self._password
 
-    @property
-    def is_logged(self) -> bool:
-        if not self._login_ts:
-            return False
-
-        delta = datetime.now() - self._login_ts
-        return delta < self.user_session_timeout
-
-    @property
-    def user_session_timeout(self) -> timedelta:
-        return self._user_session_timeout
-
-    @property
-    def auto_renew_user_session(self) -> bool:
-        return self._auto_renew_user_session
-
     async def request_json(
         self, method: str, url: str, encoding: str = "utf-8", **kwargs
     ) -> Dict[Any, Any]:
         buff = await self.request_bytes(method, url, **kwargs)
-        data = json.loads(buff.decode(encoding))
-        return data
+        return json.loads(buff.decode(encoding))
 
     async def request_bytes(self, method: str, url: str, **kwargs) -> bytes:
         resp = await self._request(method, url, **kwargs)
-        buff = await resp.content.read()
-        return buff
+        return await resp.content.read()
 
     async def _request(self, method: str, url: str, **kwargs) -> aiohttp.ClientResponse:
-        headers = kwargs.get("headers", {})
-        headers.update(self._HEADERS)
+        headers = kwargs.get("headers", {}).copy()
+        for k, v in self._HEADERS.items():
+            headers.setdefault(k, v)
         kwargs["headers"] = headers
-
         resp = await self._sess.request(method, url, **kwargs)
         if resp.status != 200:
+            body = await resp.text()
+            self._logger.error(f"Request failed with status {resp.status}. Body: {body[:500]}")
             raise RequestFailedError(resp)
-
         return resp
 
     async def login(self) -> None:
-        """
-        {
-        "result": true,
-        "error": "",
-        "redirectURL": "/VirtualOffice/Secure/action_login"
+        login_payload = {
+            "login": self.username,
+            "pass": self.password,
+            "remember": "true",
+            "suministro": ""
         }
-        """
-        login_payload = "login="+ self.username +"&pass="+ self.password + "&remember=true" + "&suministro="
+        data = await self.request_json("POST", self.url_login, data=login_payload)
+        
+        # The API sometimes returns a list containing the result dict
+        if isinstance(data, list) and len(data) > 0:
+            data = data[0]
 
-
-        data = await self.request_json("POST", _LOGIN_ENDPOINT, data=login_payload) 
-        if not isinstance(data, dict):
-            raise InvalidData(data)
-
-        if data.get("result", "false") != True:
+        if not isinstance(data, dict) or data.get("result", "false") != True:
             raise CommandError(data)
-
         self._login_ts = datetime.now()
-
-    # Desconozco como está funcionando la parte de los contratos así que la comento para descartar errores
-    # descomento para probar mejor, creo que ya lo tengo bien
         if self._contract:
             await self.select_contract(self._contract)
-
         self._logger.info(f"{self}: successful authentication")
 
+    async def get_base_urls(self, filtro: Optional[str] = None) -> List[str]:
+        if not filtro:
+            return self._base_urls
+        filtro_lower = filtro.lower()
+        return [url for url in self._base_urls if filtro_lower in url.lower()]
+
+    async def get_locations(self, filtro: str) -> List[Dict[str, Any]]:
+        # Resolve from static dump to avoid API instability
+        filtro_upper = filtro.upper()
+        results = []
+        
+        # 1. Exact match
+        if filtro_upper in self._localities:
+            url = self._localities[filtro_upper]
+            results.append({"text": filtro_upper, "url": url})
+        
+        # 2. Partial matches (if no exact match)
+        if not results:
+            for text, url in self._localities.items():
+                if filtro_upper in text:
+                    results.append({"text": text, "url": url})
+        
+        # Limit results to avoid overloading
+        return results[:10]
 
     @auth_required
     async def get_contract_details(self) -> Dict[str, Any]:
-        """
-        {
-            "result": true,
-            "data": "\r\n
-                    \u003cscript src=\"/bundles/account-form?v=91246\"\u003e\u003c/script\u003e\r\n
-                    \r\n
-                    \u003cscript\u003e\r\n
-                    var DatoValido = \"Introduzca un dato válido\";\r\n
-                    var AnadirTelfContacto = \"Añadir teléfono\";\r\n
-                    \r\n
-                    \r\n
-                    var codEstadoFactMensual = \"\";\r\n
-                    var poblacion = \"1200@010@VAL\u0026#200;NCIA                                \";\r\n
-                    var referencia = \"00000000/000\";\r\n
-                    var email = \"usuario@dominio.com\";\r\n
-                    var nombre = \"MI NOMBRE\";\r\n
-                    var ape1 = \"PRIMER APELLIDO\";\r\n
-                    var ape2 = \"SEGUNDO APELLIDO\";\r\n
-                    var documento = \"48594742C\";\r\n
-                    var telefono = \"625966487\";\r\n
-                    var descPeriodoFacturacion = \"BIMESTRAL\";\r\n
-                    var codSuministro = \"...\";\r\n
-                    \u003c/script\u003e\r\n\u003cstyle type=\"text/css\"\u003e\r\n
-                    ...
-                    \u003c/style\u003e\r\n
-                    \u003c!-- INICIO / MODAL Suministro --\u003e\r\n
-                    ...
-                    \u003ch4 class=\"modal-title\"\u003eDatos del suministro: C/AAAAA BBBBBB CCCCC, 0, ABC, 132                      . VAL\u0026#200;NCIA                                 (VALENCIA                      )\u003c/h4\u003e\r\n
-                    \u003c/div\u003e\r\n
-                    \u003cdiv class=\"modal-body\"\u003e\r\n
-                    \u003ch2\u003eDatos del suministro\u003c/h2\u003e\r\n
-                    \u003cform\u003e\r\n
-                    \u003cdiv class=\"row\"\u003e\r\n
-                    \r\n
-                    \u003cdiv class=\"form-group\"\u003e\r\n
-                    \u003cdiv class=\"col-md-4\"\u003e\r\n
-                    \u003clabel\u003eReferencia\u003c/label\u003e\r\n
-                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"00000000/000\" disabled=\"disabled\"\u003e\r\n
-                    \u003c/div\u003e\r\n
-                    \u003cdiv class=\"col-md-4\"\u003e\r\n
-                    \u003clabel\u003eFecha de contrataci\u0026#243;n\u003c/label\u003e\r\n
-                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"01/01/2000\" disabled=\"disabled\"\u003e\r\n
-                    \r\n
-                    \u003c/div\u003e\r\n
-                    \u003cdiv class=\"col-md-4\"\u003e\r\n
-                    \u003clabel\u003eTipo\u003c/label\u003e\r\n
-                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"Contador Simple     \" disabled=\"disabled\"\u003e\r\n
-                    \u003c/div\u003e\r\n 
-                    \u003c/div\u003e\r\n
-                    \u003cdiv class=\"form-group\"\u003e\r\n
-                    \u003cdiv class=\"col-md-3\"\u003e\r\n
-                    \u003clabel\u003eCalibre contador\u003c/label\u003e\r\n
-                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"015 mm\" disabled=\"disabled\"\u003e\r\n
-                    \u003c/div\u003e\r\n
-                    \u003cdiv class=\"col-md-3\"\u003e\r\n
-                    \u003clabel\u003eUso\u003c/label\u003e\r\n
-                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"DOMESTICO                \" disabled=\"disabled\"\u003e\r\n
-                    \u003c/div\u003e\r\n
-                    \u003cdiv class=\"col-md-3\"\u003e\r\n
-                    \u003clabel\u003eDestino\u003c/label\u003e\r\n
-                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"Normal                        \" disabled=\"disabled\"\u003e\r\n
-                    \u003c/div\u003e\r\n
-                    \u003cdiv class=\"col-md-3\"\u003e\r\n
-                    \u003clabel\u003eEmplazamiento\u003c/label\u003e\r\n
-                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"BATERIA             \" disabled=\"disabled\"\u003e\r\n
-                    \r\n
-                    \u003c/div\u003e\r\n
-                    \u003c/div\u003e\r\n
-                    \u003cdiv class=\"form-group\"\u003e\r\n
-                    \u003cdiv class=\"col-md-6\"\u003e\r\n
-                    \u003clabel\u003eDirecci\u0026#243;n\u003c/label\u003e\r\n
-                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"C/AAAAA BBBBBB CCCCC, 0, ABC, 132           \" disabled=\"disabled\"\u003e\r\n
-                    \u003c/div\u003e\r\n
-                    \u003cdiv class=\"col-md-6\"\u003e\r\n
-                    \u003clabel\u003ePoblaci\u0026#243;n\u003c/label\u003e\r\n
-                    \u003cinput type=\"text\" maxlength=\"100\" class=\"form-control\" value=\"VAL\u0026#200;NCIA                                \" disabled=\"disabled\"\u003e\r\n
-                    \u003c/div\u003e\r\n
-                    \u003c/div\u003e\r\n
-                    \u003c/div\u003e\r\n
-                    \r\n
-                    \u003c/form\u003e\r\n
-                    \u003chr /\u003e\r\n
-                    \r\n
-                    \u003cdiv class=\"row\"\u003e\r\n
-                    \u003cdiv class=\"form-group\"\u003e\r\n
-                    \u003cdiv class=\"col-md-12\"\u003e\r\n
-                    \u003ch2\u003eDatos generales\u003c/h2\u003e\r\n
-                    \u003c/div\u003e\r\n
-                    \r\n
-                    \u003c/div\u003e\r\n
-                    \r\n
-                    \u003cdiv class=\"form-group\"\u003e\r\n
-                    \u003cdiv class=\"col-md-6\"\u003e\r\n
-                    \u003cform\u003e\r\n
-                    \u003clabel\u003eEm@il \u003c/label\u003e\r\n
-                    \u003cinput id=\"frm_sol_email\" value=\"USUARIO@DOMINIO.COM\" name=\"frm_sol_email\" required disabled=\"disabled\" type=\"email\" class=\"form-control\" maxlength=\"110\"\u003e\r\n
-                    \u003c/form\u003e\r\n
-                    ...
-                    \u003ch2\u003eDirecci\u0026#243;n de env\u0026#237;o postal\u003c/h2\u003e\r\n
-                    ...
-                    \u003ch2\u003eCuenta bancaria\u003c/h2\u003e\r\n
-                    ...
-                    \u003clabel\u003eTitular *\u003c/label\u003e
-                    \u003cinput type=\"text\" value=\"MI NOMPRE PRIMER APELLIDO SEGUNDO APELLIDO" maxlength=\"100\" class=\"form-control disabled\" disabled=\"disabled\"\u003e\r\n
-                    \u003clabel\u003eCuenta bancaria *\u003c/label\u003e\r\n
-                    \u003cinput type=\"text\" value=\"ES00/0000/0000/00/0000******\" data-msg-required=\"Por favor rellene el campo\" class=\"form-control\" style=\"text-transform: uppercase\" data-original=\"ES05/0182/5020/29/0201******\"\r\n
-                    ...
-                    u003c!-- FIN / MODAL Suministro --\u003e"
-        }
-        """
-        contract_payload="code="+ self._contract
-        data = await self.request_json("POST", _CONTRACT_DETAILS_ENDPOINT,json=contract_payload)
+        data = await self.request_json("POST", self.url_contract_details, json={"code": self._contract})
         if data.get("result", "false") != True:
             raise CommandError(data)
-        # Comento esta comprobacion porque he añadido la anterior en su lugar, ya que la respuesta no está en formato json
-        # if not data.get("codSuministro", False):
-        #     raise InvalidData(data)
-        
         return data
 
     @auth_required
     async def get_contracts(self) -> List[Dict[str, Any]]:
-        """
-        {
-        "data": [
-            {
-            "referencia": "00000000/000",
-            "direccion": "C/AAAAA BBBBBB CCCCC, 0, ABC, 132           ",
-            "poblacion": "VALÈNCIA                                ",
-            "estado": "Activo",
-            "datos": "...",
-            "tipo": "..."
-            }
-        ]
-        }
-        """
-        current_timestamp = int(datetime.now().timestamp() * 1000)
-        json_payload = json.dumps({"order": "asc", "_": str(current_timestamp)})
-        data = await self.request_json("GET", _CONTRACTS_ENDPOINT, json=json_payload) #no tengo claro si hay que usar json= o data= en los argumentos
-        if not data.get("data", False):
+        data = await self.request_json("POST", self.url_contracts, json={})
+        if not data.get("result", False):
             raise CommandError(data)
+        
+        contracts = data.get("data", [])
+        if not isinstance(contracts, list):
+            contracts = [contracts] if contracts else []
 
-        try:
-            # return data["contratos"]
-            return data  # en realidad el código "variable" del contrato va metido en medio de la cadena ["datos"]
-        except KeyError:
-            raise InvalidData(data)
+        # Extract the real internal ID from the HTML in 'datos' field
+        for c in contracts:
+            if isinstance(c, dict) and "datos" in c:
+                match = re.search(r"Editar\('([^']+)'\)", c["datos"])
+                if match:
+                    c["internal_id"] = match.group(1)
+        
+        return contracts
 
-# Desconozco como está funcionando la parte de los contratos porque no tengo varios, solo tengo uno y no puedo probar.
+    @auth_required
+    async def get_billing_candidates(self) -> List[Dict[str, Any]]:
+        data = await self.request_json("POST", self.url_billing_candidates, json={})
+        if not data.get("result", False):
+            raise CommandError(data)
+        return data.get("data", [])
+
+    @auth_required
+    async def get_management_history(self, start: datetime, end: datetime) -> Dict[str, Any]:
+        params = {
+            "start": start.strftime("%d/%m/%Y"),
+            "end": end.strftime("%d/%m/%Y"),
+            "_": int(datetime.now().timestamp() * 1000)
+        }
+        data = await self.request_json("GET", self.url_management_history, params=params)
+        return data
+
     @auth_required
     async def select_contract(self, contract_code: str) -> None:
-        '''
-         {
-        "success": True, 
-        "encryptionValue": "AK5WDYDCx5cRX0dztAD/+KYXJDc1sDquPOmWgGPyVcax08PV2QSGY6ErFytYSjM/",
-        "encryptionKey": "preselGO02",
-        "error": "Ha habido un error. Por favor inténtelo de nuevo más tarde"
-        }
-        {
-        'success': False, 
-        'encryptionValue': '', 
-        'encryptionKey': '', 
-        'error': 'Ha habido un error. Por favor inténtelo de nuevo más tarde'
-        }
-        '''
-
-
-        contract_payload = json.dumps({"suministro": contract_code})
-        resp = await self.request_json("POST", _CONTRACT_SELECTION_ENDPOINT, json=contract_payload)
-        if resp.get("succes", False):
+        # TODO: Pendiente de desarrollo y pruebas exhaustivas cuando haya acceso 
+        # a un usuario con varios contratos. Actualmente devuelve error genérico 
+        # con el internal_id en algunas cuentas.
+        resp = await self.request_json("POST", self.url_contract_selection, json={"suministro": contract_code})
+        if not resp.get("success", False):
+            self._logger.error(f"Select contract failed for {contract_code}: {resp}")
             raise InvalidContractError(contract_code)
-
         self._contract = contract_code
         self._logger.info(f"{self}: '{contract_code}' contract selected")
 
     @auth_required
     async def get_measure(self) -> Measure:
-        """
-        {
-        "result": true,
-        "data": {
-            "labels": [
-            "22/12 00:00",
-            "22/12 01:00"
-            ],
-            "datasets": [
-            {
-                "label": "Consumo litros",
-                "data": [
-                {
-                    "title": "160,684",
-                    "y": 0
-                },
-                {
-                    "title": "160,684",
-                    "y": 1
-                }
-                ]
-            },
-            {
-                "label": "Lectura m3",
-                "data": null
-            }
-            ]
-        },
-        "table": [
-            {
-            "Fecha": "/Date(1703199600000)/",
-            "FechaString": "<span style='display:none'>202312220000 - </span>22/12/2023 0:00:00",
-            "FechaDesde": null,
-            "FechaHasta": null,
-            "Periodo": null,
-            "Consumo": "0",
-            "TipoLectura": null,
-            "Observacion": "22/12 00:00",
-            "Lectura": "160,684"
-            },
-            {
-            "Fecha": "/Date(1703203200000)/",
-            "FechaString": "<span style='display:none'>202312220100 - </span>22/12/2023 1:00:00",
-            "FechaDesde": null,
-            "FechaHasta": null,
-            "Periodo": null,
-            "Consumo": "1",
-            "TipoLectura": null,
-            "Observacion": "22/12 01:00",
-            "Lectura": "160,684"
-            }
-        ],
-        "alarmas": ""
-        }
-        """
-
-        self._logger.debug("Requesting data may take up to a minute.")
-
+        self._logger.debug("Requesting data.")
         end_today = datetime.now().strftime("%d/%m/%Y")
         start_yesterday = (datetime.now() - timedelta(days=1)).strftime("%d/%m/%Y")
-        payload = f"start={start_yesterday}&end={end_today}"
-
-        data = await self.request_json("GET", _MEASURE_ENDPOINT, data=payload) #cambiar entre request_json y _request
-        #data = await self._request("GET", _MEASURE_ENDPOINT, data=payload) #cambiar entre request_json y _request
-
-        self._logger.debug(f"Got reply, raw data: {data!r}")
-
+        data = await self.request_json(
+            "GET", 
+            self.url_measure, 
+            params={"start": start_yesterday, "end": end_today}
+        )
         try:
-
             measure = Measure(
-                accumulate=parsers.convert_str_comma_to_float(data["table"][-1]["Lectura"]),  # accedo solo al último elemento para la lectura "instantanea"
-                instant=parsers.convert_str_comma_to_float(data["table"][-1]["Consumo"]),  # accedo solo al último elemento para la lectura "instantanea"
+                accumulate=parsers.convert_str_comma_to_float(data["table"][-1]["Lectura"]),
+                instant=parsers.convert_str_comma_to_float(data["table"][-1]["Consumo"]),
             )
-
-        except (KeyError, ValueError) as e:
+        except (KeyError, ValueError, IndexError) as e:
             raise InvalidData(data) from e
-
-        self._logger.info(f"{self}: Measure reading successful")
         return measure
 
-    async def get_historical_consumption(
-        self, start: datetime, end: datetime
-    ) -> HistoricalConsumption:
+    async def get_historical_consumption(self, start: datetime, end: datetime) -> HistoricalConsumption:
         return await self._get_historical_consumption(start, end)
 
-
-    @auth_required # este trozo de abajo también se puede quitar???
-    async def _get_historical_generic_data(
-        self, url_template: str, start: datetime, end: datetime
-    ) -> Dict[Any, Any]:
-        start = min([start, end])
-        end = max([start, end])
-        url = url_template.format(start=start, end=end)
-
-        data = await self.request_json("GET", url, encoding="iso-8859-1")
-
-        base_date = datetime(start.year, start.month, start.day)
-        ret = parsers.parser_generic_historical_data(data, base_date)
-
-        return ret # este trozo de arriba también se puede quitar???
-
-    @auth_required
-    async def _get_historical_consumption(
-        self, start: datetime, end: datetime
-    ) -> HistoricalConsumption:
-        start = min([start, end])
-        end = max([start, end])
-        payload = f"start={start}&end={end}"
-
-        #data = await self._request("GET", _CONSUMPTION_PERIOD_ENDPOINT, data=payload) #cambiar entre request_json y _request
-        data = await self.request_json("GET", _CONSUMPTION_PERIOD_ENDPOINT, data=payload) #cambiar entre request_json y _request
-
+    async def _get_historical_consumption(self, start: datetime, end: datetime) -> HistoricalConsumption:
+        start, end = min(start, end), max(start, end)
+        data = await self.request_json(
+            "GET", 
+            self.url_consumption, 
+            params={
+                "start": start.strftime("%d/%m/%Y"),
+                "end": end.strftime("%d/%m/%Y")
+            }
+        )
         ret = parsers.parse_historical_consumption(data)
-        ret.consumptions = [
-            x for x in ret.consumptions if x.start >= start and x.end < end
-        ]
+        ret.consumptions = [x for x in ret.consumptions if x.start >= start and x.end < end]
         return ret
 
-
     def __repr__(self):
-        return (
-            f"<globalomnium.Client username={self.username}, contract={self._contract}>"
-        )
+        return f"<globalomnium.Client username={self.username}, contract={self._contract}>"
 
 
-class ClientError(Exception):
-    pass
+class ClientError(Exception): pass
+class RequestFailedError(ClientError): pass
+class CommandError(ClientError): pass
+class InvalidData(ClientError): pass
+class InvalidContractError(ClientError): pass
 
 
-class RequestFailedError(ClientError):
-    def __init__(self, response):
-        self.response = response
+async def get_session():
+    return aiohttp.ClientSession()
 
-    def __str__(self):
-        return f"Invalid response: {self.response.status} - {self.response.reason}"
-
-
-class CommandError(ClientError):
-    def __init__(self, data):
-        self.data = data
-
-    def __str__(self):
-        return f"Command not succesful: {self.data!r}"
-
-
-class InvalidData(ClientError):
-    def __init__(self, data):
-        self.data = data
-
-    def __str__(self):
-        return f"Invalid data from server: {self.data!r}"
-
-
-class InvalidContractError(ClientError):
-    def __init__(self, data):
-        self.data = data
-
-    def __str__(self):
-        return f"Invalid contract code: {self.data!r}"
+async def get_credentials():
+    return {"username": "user", "password": "pass"}

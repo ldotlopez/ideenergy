@@ -150,3 +150,4 @@ globalomnium/my-notes.txt
 *.sublime-workspace
 Pipfile.lock
 alt/
+tmp_scripts/

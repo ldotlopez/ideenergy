@@ -1,0 +1,47 @@
+{
+  "flowId": "flow_globalomnium_overhaul_2026",
+  "goal": "Refactor, Audit, and Migrate the globalomnium library",
+  "config": {
+    "preferredModel": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+    "fallbackStrategy": "temporary_switch_on_rate_limit"
+  },
+  "currentStep": "audit_license",
+  "status": "running",
+  "stateJson": {
+    "refactor_core": {
+      "status": "completed",
+      "completed_tasks": [
+        "modernize_pyproject_toml",
+        "refactor_client_typing",
+        "fix_base_url_mandatory",
+        "refactor_parsers_typing",
+        "verify_cli_compatibility"
+      ],
+      "pending_tasks": []
+    },
+    "audit_tests": {
+      "status": "completed",
+      "completed_tasks": [
+        "review_test_completeness",
+        "evaluate_live_api_vs_mocks",
+        "organize_tests_into_unit_and_integration_dirs",
+        "implement_optional_integration_tests"
+      ],
+      "pending_tasks": [],
+      "recommendation": "Implement optional integration tests with pytest markers (--run-integration). Separate tests into unit/ and integration/ directories.",
+      "decision": "Separate tests into unit/ and integration/ directories."
+    },
+    "audit_license": {
+      "status": "in_progress",
+      "pending_tasks": [
+        "compare_code_with_ldotlopez_repos",
+        "determine_attribution_necessity"
+      ],
+      "notes": "Compare with ldotlopez/ideenergy and ldotlopez/ha-ideenergy"
+    },
+    "repo_migration": {
+      "status": "pending"
+    }
+  },
+  "updatedAt": "2026-04-18T13:20:00Z"
+}

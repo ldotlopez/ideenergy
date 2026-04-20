@@ -1,8 +1,37 @@
-# https://packaging.python.org/tutorials/packaging-projects/
-
 [build-system]
-requires = [
-    "setuptools>=42",
-    "wheel"
-]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "globalomnium"
+version = "2024.10.0"
+authors = [
+  { name="carlos-48", email="karloselmaster@gmail.com" },
+]
+description = "Interface to globalomnium.com water data"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "aiohttp>=3.8.0, <4",
+]
+
+[project.optional-dependencies]
+mqtt = ["paho-mqtt >= 1.6.1, <2"]
+
+[project.scripts]
+globalomnium = "globalomnium.cli:main"
+globalomnium-mqtt = "globalomnium.mqtt:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+asyncio_default_test_loop_scope = "function"
+markers = [
+    "integration: runs integration tests against the live API"
+]
+
