@@ -27,7 +27,7 @@ import pprint
 import sys
 from datetime import datetime, timedelta
 
-from globalomnium import Client, RequestFailedError, get_credentials, get_session
+from globalomnium import Client, RequestFailedError, get_credentials, get_session, HistoricalConsumption
 
 
 def build_arg_parser():
@@ -44,6 +44,9 @@ def build_arg_parser():
     parser.add_argument("--list-urls", action="store_true")
     parser.add_argument("--get-measure", action="store_true")
     parser.add_argument("--get-historical-consumption", action="store_true")
+    parser.add_argument("--backfill-historical", action="store_true")
+    parser.add_argument("--backfill-start", metavar="YYYY-MM-DD", help="Start date for backfill (default: 1 year ago)")
+    parser.add_argument("--backfill-chunk-days", type=int, default=30, help="Days per chunk (default: 30)")
     # parser.add_argument("--get-historical-generation", action="store_true")
     # parser.add_argument("--get-historical-power-demand", action="store_true")
 
@@ -67,6 +70,30 @@ async def main():
 
         if args.get_historical_consumption:
             return await client.get_historical_consumption(start, end)
+
+        if args.backfill_historical:
+            if args.backfill_start:
+                start_date = datetime.strptime(args.backfill_start, "%Y-%m-%d")
+            else:
+                start_date = None
+            
+            results = []
+            def progress_cb(chunk_num, total_chunks, data):
+                logger.info(f"Progress: chunk {chunk_num}, got {len(data.consumptions)} records")
+            
+            chunks = await client.backfill_historical(
+                start_date=start_date,
+                chunk_days=args.backfill_chunk_days,
+                progress_callback=progress_cb
+            )
+            
+            # Merge all chunks into a single result
+            merged = HistoricalConsumption()
+            for chunk in chunks:
+                merged.consumptions.extend(chunk.consumptions)
+                if chunk.total > merged.total:
+                    merged.total = chunk.total
+            return merged
 
         # if args.get_historical_generation:
         #     return await client.get_historical_generation(start, end)

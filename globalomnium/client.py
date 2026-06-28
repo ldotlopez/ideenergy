@@ -13,7 +13,7 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import Any, Dict, List, Optional, Union, Final
 
 import aiohttp
@@ -318,6 +318,90 @@ class Client:
     async def get_historical_consumption(self, start: datetime, end: datetime) -> HistoricalConsumption:
         return await self._get_historical_consumption(start, end)
 
+    async def get_historical_consumption_range(
+        self,
+        start: datetime,
+        end: datetime,
+        chunk_days: int = 30,
+    ) -> HistoricalConsumption:
+        """
+        Get historical consumption data for a date range, handling chunking if the range
+        exceeds the API limit.
+
+        Args:
+            start: Start date (inclusive)
+            end: End date (inclusive)
+            chunk_days: Maximum days per API request (default: 30)
+
+        Returns:
+            HistoricalConsumption with all data combined from chunks
+        """
+        if start > end:
+            start, end = end, start
+
+        # Normalize end to end of day if it's at midnight (00:00:00)
+        if end.hour == 0 and end.minute == 0 and end.second == 0 and end.microsecond == 0:
+            end = end.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        if chunk_days <= 0:
+            raise ValueError("chunk_days must be positive")
+
+        all_consumptions = []
+        total = 0.0
+        current_start = start
+
+        while current_start <= end:
+            current_end = min(current_start + timedelta(days=chunk_days - 1), end)
+            self._logger.debug(
+                f"Fetching historical consumption chunk: {current_start.date()} to {current_end.date()}"
+            )
+
+            chunk = await self._get_historical_consumption(current_start, current_end)
+            all_consumptions.extend(chunk.consumptions)
+            total += chunk.total
+
+            current_start = current_end + timedelta(days=1)
+
+        # Sort by start time to ensure consistent ordering
+        all_consumptions.sort(key=lambda x: x.start)
+
+        return HistoricalConsumption(
+            consumptions=all_consumptions,
+            total=round(total, 3),
+        )
+
+    async def backfill_all_historical(
+        self,
+        start_date: date,
+        end_date: Optional[date] = None,
+        chunk_days: int = 30,
+    ) -> HistoricalConsumption:
+        """
+        Backfill all historical consumption data from start_date to end_date (or today).
+
+        Args:
+            start_date: Start date for backfill (inclusive)
+            end_date: End date for backfill (inclusive), defaults to today
+            chunk_days: Maximum days per API request (default: 30)
+
+        Returns:
+            HistoricalConsumption with all data from start_date to end_date
+        """
+        if end_date is None:
+            end_date = date.today()
+
+        if start_date > end_date:
+            raise ValueError("start_date must be before or equal to end_date")
+
+        if start_date > date.today():
+            raise ValueError("start_date cannot be in the future")
+
+        # Convert to datetime at midnight
+        start_dt = datetime.combine(start_date, datetime.min.time())
+        end_dt = datetime.combine(end_date, datetime.max.time())
+
+        return await self.get_historical_consumption_range(start_dt, end_dt, chunk_days=chunk_days)
+
     async def _get_historical_consumption(self, start: datetime, end: datetime) -> HistoricalConsumption:
         start, end = min(start, end), max(start, end)
         data = await self.request_json(
@@ -331,6 +415,57 @@ class Client:
         ret = parsers.parse_historical_consumption(data)
         ret.consumptions = [x for x in ret.consumptions if x.start >= start and x.end < end]
         return ret
+
+    async def backfill_historical(
+        self, 
+        start_date: Optional[datetime] = None, 
+        chunk_days: int = 30,
+        progress_callback: Optional[callable] = None
+    ) -> List[HistoricalConsumption]:
+        """
+        Fetch all historical consumption from start_date to today in chunks.
+        
+        Args:
+            start_date: Start date for backfill. If None, tries to fetch from earliest available.
+            chunk_days: Number of days per API request (default 30 to avoid API limits).
+            progress_callback: Optional callback(current_chunk, total_chunks, data) for progress reporting.
+        
+        Returns:
+            List of HistoricalConsumption objects for each covering the caller can merge.
+        """
+        end_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        if start_date is None:
+            # Try to find earliest available date by checking 1 year back
+            start_date = end_date - timedelta(days=365)
+        
+        if start_date >= end_date:
+            raise ValueError("start_date must be before end_date (today)")
+        
+        results = []
+        current_start = start_date
+        chunk_num = 0
+        
+        while current_start < end_date:
+            current_end = min(current_start + timedelta(days=chunk_days), end_date)
+            chunk_num += 1
+            
+            self._logger.info(f"Backfill chunk {chunk_num}: {current_start.date()} to {current_end.date()}")
+            
+            try:
+                chunk_data = await self._get_historical_consumption(current_start, current_end)
+                results.append(chunk_data)
+                
+                if progress_callback:
+                    progress_callback(chunk_num, len(results), chunk_data)
+                    
+            except Exception as e:
+                self._logger.error(f"Backfill chunk {chunk_num} failed: {e}")
+                raise
+            
+            current_start = current_end
+        
+        return results
 
     def __repr__(self):
         return f"<globalomnium.Client username={self.username}, contract={self._contract}>"
