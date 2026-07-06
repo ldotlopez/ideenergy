@@ -143,6 +143,15 @@ _GENERATION_PERIOD_ENDPOINT = (
 # }
 _ICP_STATUS_ENDPOINT = f"{_REST_BASE_URL}/rearmeICP/consultarEstado"
 
+## Endpoint used to request ICP reconnection
+# On success:
+# {
+#     "maximoRearme": "false",
+#     "success": "true",
+#     "rearme": 0,
+# }
+_ICP_RECONNECT_ENDPOINT = f"{_BASE_URL}/area-privada/rest/rearmeICP/reconexion"
+
 ## Endpoint used to get current power demand
 # {
 #     "valMagnitud": "158.64",

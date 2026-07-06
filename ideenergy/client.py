@@ -38,6 +38,7 @@ from .endpoints import (
     _CONTRACT_SELECTION_ENDPOINT,
     _CONTRACTS_ENDPOINT,
     _GENERATION_PERIOD_ENDPOINT,
+    _ICP_RECONNECT_ENDPOINT,
     _ICP_STATUS_ENDPOINT,
     _KEEP_SESSION,
     _LOGIN_ENDPOINT,
@@ -298,6 +299,34 @@ class Client:
             LOGGER.debug(f"{self}: ICP is NOT ready")
 
         return ret
+
+    @auth_required
+    async def reconnect_icp(self) -> dict[str, Any]:
+        try:
+            data = await self.request_json(
+                "POST",
+                _ICP_RECONNECT_ENDPOINT,
+                json={},
+                headers={
+                    "dispositivo": "desktop",
+                    "AppVersion": "v2",
+                    "Origin": _BASE_URL,
+                },
+            )
+        except ValueError as exc:
+            LOGGER.error(f"{self}: ICP reconnect failed, invalid data")
+            raise InvalidData({"error": str(exc)}) from exc
+
+        if not isinstance(data, dict):
+            LOGGER.error(f"{self}: ICP reconnect failed, invalid data")
+            raise InvalidData(data)
+
+        if data.get("success", "false") != "true":
+            LOGGER.error(f"{self}: ICP reconnect failed")
+            raise CommandError(data)
+
+        LOGGER.debug(f"{self}: ICP reconnect requested")
+        return data
 
     @auth_required
     async def get_contract_details(self) -> dict[str, Any]:
