@@ -49,6 +49,7 @@ def build_arg_parser():
     parser.add_argument("--get-historical-generation", action="store_true")
     parser.add_argument("--get-historical-power-demand", action="store_true")
     parser.add_argument("--get-in-progress-consumption", action="store_true")
+    parser.add_argument("--reconnect-icp", action="store_true")
     parser.add_argument("--start", type=datetime.fromisoformat)
     parser.add_argument("--end", type=datetime.fromisoformat)
 
@@ -127,6 +128,9 @@ async def amain():
         if args.get_in_progress_consumption:
             return await client.get_in_progress_consumption()
 
+        if args.reconnect_icp:
+            return await client.reconnect_icp()
+
     logging.basicConfig(
         format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
@@ -156,6 +160,7 @@ async def amain():
         or args.get_historical_generation
         or args.get_historical_power_demand
         or args.get_in_progress_consumption
+        or args.reconnect_icp
         or args.check_auth_validity
     ):
         parser.print_help()
