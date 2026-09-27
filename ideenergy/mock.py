@@ -80,6 +80,10 @@ class MockClient(Client):
         return True
 
     @auth_required
+    async def reconnect_icp(self) -> dict:
+        return {"maximoRearme": "false", "success": "true", "rearme": 0}
+
+    @auth_required
     async def get_contracts(self) -> dict:
         return {
             "success": True,
