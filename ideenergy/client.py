@@ -68,15 +68,16 @@ SESSION_TIMEOUT = 900
 SESSION_AUTO_REFRESH = True
 
 # Define TypeVars to preserve the signature and return type
+C = TypeVar("C", bound="Client")
 P = ParamSpec("P")
 R = TypeVar("R")
 
 
 def auth_required(
-    fn: Callable[Concatenate[Client, P], Awaitable[R]],
-) -> Callable[Concatenate[Client, P], Awaitable[R]]:
+    fn: Callable[Concatenate[C, P], Awaitable[R]],
+) -> Callable[Concatenate[C, P], Awaitable[R]]:
     @functools.wraps(fn)
-    async def _wrap(client: Client, *args, **kwargs):
+    async def _wrap(client: C, *args: P.args, **kwargs: P.kwargs) -> R:
         if client._session_auto_refresh is True and client.is_logged is False:
             await client.login()
 
