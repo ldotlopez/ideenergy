@@ -144,6 +144,10 @@ async def amain():
         return 1
 
     trace_config = aiohttp.TraceConfig()
+    # NOTE: --trace-http-requests is a developer-only debugging tool, NOT meant for
+    # production. It deliberately dumps everything on the wire, including sensitive
+    # data (login payload with plaintext password, session cookies, personal data in
+    # responses). Do not "sanitize" it: inspecting the raw traffic is its purpose.
     if args.trace_http_requests:
         trace_config.on_request_start.append(on_request_start)
         trace_config.on_request_end.append(on_request_end)
