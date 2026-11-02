@@ -357,8 +357,7 @@ class Client:
         end = end or datetime.now()
         start = start or end - timedelta(days=7)
 
-        start = min([start, end])
-        end = max([start, end])
+        start, end = sorted((start, end))
         url = _CONSUMPTION_PERIOD_ENDPOINT.format(start=start, end=end)
 
         data = await self.request_json("GET", url, encoding="iso-8859-1")
@@ -383,8 +382,7 @@ class Client:
         end = end or datetime.now()
         start = start or end - timedelta(days=7)
 
-        start = min([start, end])
-        end = max([start, end])
+        start, end = sorted((start, end))
         url = _GENERATION_PERIOD_ENDPOINT.format(start=start, end=end)
 
         data = await self.request_json("GET", url, encoding="iso-8859-1")
