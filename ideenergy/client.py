@@ -143,7 +143,7 @@ class Client:
         self._username = username
         self._password = password
         self._contract = contract
-        self._session_timeout = timedelta(session_timeout.total_seconds() * 0.9)
+        self._session_timeout = timedelta(seconds=session_timeout.total_seconds() * 0.9)
         self._session_auto_refresh = session_auto_refresh
 
         self._login_ts: datetime | None = None
