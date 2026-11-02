@@ -16,13 +16,10 @@
 # USA.
 
 
-import logging
-import os
 import random
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 import aiohttp
@@ -35,15 +32,6 @@ from .types import (
     HistoricalConsumption,
     Measure,
 )
-
-LOGGER = logging.getLogger(__name__)
-
-I_DE_ENERGY_DUMP_DIRECTORY = os.environ.get("I_DE_ENERGY_DUMP_DIRECTORY", "")
-I_DE_ENERGY_DUMP = bool(I_DE_ENERGY_DUMP_DIRECTORY)
-if I_DE_ENERGY_DUMP:
-    I_DE_ENERGY_DUMP_BASE_PATH = Path(I_DE_ENERGY_DUMP_DIRECTORY)
-else:
-    I_DE_ENERGY_DUMP_DIRECTORY = None
 
 
 class MockClient(Client):
