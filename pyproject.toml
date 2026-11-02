@@ -5,7 +5,7 @@ name = "ideenergy"
 version = "2.0.1dev3"
 dependencies = [
     "aiohttp <4.0,>=3.8",
-    "dotenv>=0.9.9",
+    "python-dotenv>=1.0",
     "importlib-metadata; python_version >= '3.11'",
 ]
 authors = [
