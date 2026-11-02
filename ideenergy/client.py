@@ -266,13 +266,13 @@ class Client:
             LOGGER.error(f"{self}: auth failed, invalid data")
             raise InvalidData(data)
 
-        if data.get("success", "false") != "true":
-            LOGGER.error(f"{self}: auth failed, no success")
-            raise CommandError(data)
-
         if data.get("success", "") == "userExpired":
             LOGGER.error(f"{self}: auth failed, user session expired")
             raise UserExpiredError(data)
+
+        if data.get("success", "false") != "true":
+            LOGGER.error(f"{self}: auth failed, no success")
+            raise CommandError(data)
 
         self._login_ts = datetime.now()
         LOGGER.debug(f"{self}: succesfully authenticaded")
