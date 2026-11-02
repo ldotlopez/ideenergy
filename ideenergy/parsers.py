@@ -124,7 +124,7 @@ def parse_historical_power_demand_data(data) -> HistoricalPowerDemand:
         )
 
     potMaxMens = data["potMaxMens"]
-    potMaxMens = list(itertools.chain.from_iterable([x for x in potMaxMens]))
+    potMaxMens = list(itertools.chain.from_iterable(potMaxMens))
 
     demands = [_normalize_item(x) for x in potMaxMens]
     demands = list(sorted(demands, key=lambda x: x.dt))
