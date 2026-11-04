@@ -5,7 +5,14 @@ Programmatic access to consumer energy consumption from https://www.i-de.es/ (Sp
 
 <!-- Code and releases -->
 
-![GitHub Release (latest SemVer including pre-releases)](https://img.shields.io/github/v/release/ldotlopez/ideenergy)
+[![PyPI version](https://img.shields.io/pypi/v/ideenergy)](https://pypi.org/project/ideenergy/)
+[![Python versions](https://img.shields.io/pypi/pyversions/ideenergy)](https://pypi.org/project/ideenergy/)
+[![GitHub release](https://img.shields.io/github/v/release/ldotlopez/ideenergy?include_prereleases)](https://github.com/ldotlopez/ideenergy/releases)
+[![License](https://img.shields.io/github/license/ldotlopez/ideenergy)](LICENSE)
+
+<!-- Workflows -->
+
+[![CI](https://github.com/ldotlopez/ideenergy/actions/workflows/ci.yml/badge.svg)](https://github.com/ldotlopez/ideenergy/actions/workflows/ci.yml)
 [![Create release](https://github.com/ldotlopez/ideenergy/actions/workflows/release.yml/badge.svg)](https://github.com/ldotlopez/ideenergy/actions/workflows/release.yml)
 [![Upload Python package](https://github.com/ldotlopez/ideenergy/actions/workflows/publish.yml/badge.svg)](https://github.com/ldotlopez/ideenergy/actions/workflows/publish.yml)
 

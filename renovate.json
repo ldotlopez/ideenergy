@@ -3,6 +3,10 @@
   "extends": [
     "config:recommended"
   ],
+  "platformAutomerge": true,
+  "vulnerabilityAlerts": {
+    "automerge": true
+  },
   "packageRules": [
     {
       "matchUpdateTypes": [
@@ -10,7 +14,12 @@
         "minor"
       ],
       "automerge": true
+    },
+    {
+      "matchFileNames": [
+        ".python-version"
+      ],
+      "enabled": false
     }
-  ],
-  "platformAutomerge": true
+  ]
 }
