@@ -12,11 +12,22 @@ authors = [
   {name = "Luis López", email = "luis@cuarentaydos.com"},
 ]
 readme = "README.md"
+license = "GPL-3.0-only"
 license-files = ["LICENSE"]
+keywords = ["energy", "i-de", "iberdrola", "spain", "energy-consumption", "asyncio"]
 description ="Programmatic access to consumer energy consumption from https://www.i-de.es/ (Spanish energy distributor)"
 classifiers = [
-    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Home Automation",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 requires-python = ">=3.11"
 
