@@ -147,3 +147,7 @@ credentials.json
 *.sublime-workspace
 Pipfile.lock
 .DS_Store
+
+# Claude Code personal files
+CLAUDE.local.md
+.claude/settings.local.json
