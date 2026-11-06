@@ -17,7 +17,7 @@
 
 
 import random
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Any
@@ -172,8 +172,10 @@ class MockClient(Client):
 
     @auth_required
     async def get_historical_consumption(
-        self, start: datetime, end: datetime
+        self, start: datetime | None = None, end: datetime | None = None
     ) -> HistoricalConsumption:
+        start = start or datetime.now()
+        end = end or datetime.now()
         start = start.replace(minute=0, second=0)
         end = end.replace(minute=0, second=0)
 
@@ -203,5 +205,5 @@ def datetime_range(
 
 
 @contextmanager
-def preseed_random(seed) -> Iterator[random.Random]:
+def preseed_random(seed) -> Generator[random.Random]:
     yield random.Random(repr(seed))
