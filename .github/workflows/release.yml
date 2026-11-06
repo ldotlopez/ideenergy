@@ -1,32 +1,57 @@
-name: Create Release
+name: Release
 
 on:
   push:
     tags:
       - 'v*'
 
+permissions: {}
+
 jobs:
-  build-and-release:
+  build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-
+      contents: read
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: '3.x'
+      - uses: astral-sh/setup-uv@v10.3.3
 
       - name: Build package
-        run: |
-          pip install uv
-          uv build
+        run: uv build
 
-      # This stores the files so the next workflow can find them
-      - name: Upload artifacts for publishing
+      - name: Upload distributions
         uses: actions/upload-artifact@v7
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  publish-pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/ideenergy
+    permissions:
+      id-token: write # PyPI Trusted Publishing (OIDC), no API token
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v8
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v8
         with:
           name: python-package-distributions
           path: dist/
@@ -37,4 +62,3 @@ jobs:
           files: dist/*
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
-          # draft: true # Uncomment this to manual-trigger the publish workflow
