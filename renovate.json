@@ -7,12 +7,18 @@
   "vulnerabilityAlerts": {
     "automerge": true
   },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true,
+    "schedule": [
+      "before 6am on monday"
+    ]
+  },
   "packageRules": [
     {
       "matchUpdateTypes": [
         "patch",
-        "minor",
-        "major"
+        "minor"
       ],
       "automerge": true
     },
