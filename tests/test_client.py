@@ -28,7 +28,12 @@ import aiohttp
 
 from ideenergy import Client, MockClient
 from ideenergy.cli import probe_auth_validity
-from ideenergy.client import _LOGIN_ENDPOINT
+from ideenergy.client import (
+    _ICP_RECONNECT_ENDPOINT,
+    _LOGIN_ENDPOINT,
+    CommandError,
+    InvalidData,
+)
 
 FIXTURES_DIR = os.path.dirname(__file__) + "/fixtures"
 
@@ -95,6 +100,47 @@ class TestClient(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(ret.demands[25].dt, datetime(2022, 5, 28, 22, 15))
             self.assertEqual(ret.demands[25].value, 2816.0)
 
+    @patch("ideenergy.Client.is_logged", return_value=True)
+    async def test_reconnect_icp(self, _):
+        data = {"maximoRearme": "false", "success": "true", "rearme": 0}
+
+        with patch(
+            "ideenergy.Client.request_json",
+            new_class=AsyncMock,
+            return_value=data,
+        ) as fn:
+            ret = await self.client.reconnect_icp()
+
+        self.assertEqual(ret, data)
+        self.assertEqual(fn.await_count, 1)
+        self.assertEqual(fn.await_args.args, ("POST", _ICP_RECONNECT_ENDPOINT))
+        self.assertEqual(fn.await_args.kwargs["json"], {})
+        self.assertEqual(fn.await_args.kwargs["headers"]["dispositivo"], "desktop")
+        self.assertEqual(fn.await_args.kwargs["headers"]["AppVersion"], "v2")
+        self.assertEqual(
+            fn.await_args.kwargs["headers"]["Origin"], "https://www.i-de.es"
+        )
+
+    @patch("ideenergy.Client.is_logged", return_value=True)
+    async def test_reconnect_icp_command_error(self, _):
+        with patch(
+            "ideenergy.Client.request_json",
+            new_class=AsyncMock,
+            return_value={"success": "false"},
+        ):
+            with self.assertRaises(CommandError):
+                await self.client.reconnect_icp()
+
+    @patch("ideenergy.Client.is_logged", return_value=True)
+    async def test_reconnect_icp_invalid_data(self, _):
+        with patch(
+            "ideenergy.Client.request_json",
+            new_class=AsyncMock,
+            side_effect=ValueError("invalid json"),
+        ):
+            with self.assertRaises(InvalidData):
+                await self.client.reconnect_icp()
+
 
 class TestMockClient(unittest.IsolatedAsyncioTestCase):
     async def test_login_sets_contract_and_session(self):
@@ -130,6 +176,13 @@ class TestMockClient(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(client2.contract, "222")
         self.assertEqual(details1["codContrato"], 123456789.0)
         self.assertEqual(details2["codContrato"], 123456789.0)
+
+    async def test_reconnect_icp(self):
+        client = MockClient(None, "x", "y")
+
+        ret = await client.reconnect_icp()
+
+        self.assertEqual(ret, {"maximoRearme": "false", "success": "true", "rearme": 0})
 
 
 class TestAuthValidityProbe(unittest.IsolatedAsyncioTestCase):
